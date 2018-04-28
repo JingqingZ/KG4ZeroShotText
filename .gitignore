@@ -2,4 +2,5 @@ data/arxiv/*
 wordEmbeddings/
 .idea/
 data/wiki/*.csv
+data/wiki/*.zip
 data/wiki/wiki_len_text.png
