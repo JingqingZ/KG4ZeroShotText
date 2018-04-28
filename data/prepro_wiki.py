@@ -5,6 +5,13 @@ import operator
 import progressbar
 import pandas as pd
 import xml.etree.ElementTree as ET
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+
+########################################
+# configuration settings
+########################################
 
 datapath_dbpedia = "../../data/dbpedia/csv/"
 datapath_wikipedia = "../../data/wikipedia/"
@@ -14,6 +21,11 @@ datafile_wikipedia_simple = datapath_wikipedia + 'simplewiki-20170820-pages-meta
 xml_ns = "{http://www.mediawiki.org/xml/export-0.10/}"
 
 clean_wiki_file = "simple_wiki.csv"
+clean_wiki_file2 = "simple_wiki_2.csv"
+
+########################################
+# preprocessing stage 1
+########################################
 
 def choose_first(matchobj):
     content = matchobj.group(0)
@@ -246,10 +258,49 @@ def simple_prepro(xmlfilename, num_entities=progressbar.UnknownLength):
     df = pd.DataFrame(pending_data, columns=columns)
     df.to_csv(clean_wiki_file)
 
+########################################
+# preprocessing stage 2
+########################################
+
+def csv_stat(csvfilename):
+    df = pd.read_csv(csvfilename, index_col=0)
+    df = df.dropna(how="any")
+    df = df[~df["title"].str.contains(":")]
+    df["len_text"] = df["text"].apply(len)
+    upperbound = df["len_text"].quantile(q=0.9)
+    lowerbound = df["len_text"].quantile(q=0.1)
+    df = df[df["len_text"] > lowerbound]
+    df = df[df["len_text"] < upperbound]
+    '''
+    print(df)
+    print(df.loc[df["len_text"].idxmax()])
+    print(df.loc[df["len_text"].idxmin()])
+    print("max", df["len_text"].max())
+    print("90", df["len_text"].quantile(q=0.9))
+    print("60", df["len_text"].quantile(q=0.6))
+    print("30", df["len_text"].quantile(q=0.3))
+    print("10", df["len_text"].quantile(q=0.1))
+    print("median", df["len_text"].median())
+    print("mean", df["len_text"].mean())
+    print("min", df["len_text"].min())
+    df["len_text"].hist(bins=100)
+    plt.savefig("wiki_len_text.png")
+    '''
+    df = df.reset_index(drop=True)
+    df.to_csv(clean_wiki_file2)
+    return df
+
 if __name__ == "__main__":
 
+    ########################################
+    # stage 1: preprocessing simple wiki
     # num_entities = wiki_stat(datafile_wikipedia_simple)
     # all_fields = fields_stat(datafile_wikipedia_full, num_entities=num_entities)
     # print(all_fields)
-    simple_prepro(datafile_wikipedia_simple, num_entities=430040)
+    # simple_prepro(datafile_wikipedia_simple, num_entities=430040)
+
+    ########################################
+    # stage 2: preprocessing simplewiki.csv
+    csv_stat(clean_wiki_file)
+
     pass
