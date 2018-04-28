@@ -1,3 +1,4 @@
 data/arxiv/*
 wordEmbeddings/
 .idea/
+*.csv
