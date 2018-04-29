@@ -1,4 +1,5 @@
 data/arxiv/*
+data/wiki/*
 wordEmbeddings/
 .idea/
 *.csv
