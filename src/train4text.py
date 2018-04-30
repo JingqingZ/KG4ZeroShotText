@@ -95,13 +95,9 @@ class Controller4Text(Controller):
         Controller.__init__(self, model=model)
         self.base_epoch = base_epoch
 
-    def __train__(self, epoch, encode_seqs, decode_seqs, target_seqs, target_mask):
+    def __train__(self, epoch, text_seqs, vocab):
 
-        assert len(encode_seqs) == len(decode_seqs)
-        assert len(encode_seqs) == len(target_seqs)
-        assert len(encode_seqs) == len(target_mask)
-
-        train_order = list(range(len(encode_seqs)))
+        train_order = list(range(len(text_seqs)))
         random.shuffle(train_order)
 
         start_time = time.time()
@@ -113,10 +109,19 @@ class Controller4Text(Controller):
 
         for cstep in range(train_steps):
 
-            encode_seqs_mini = [encode_seqs[idx] for idx in train_order[cstep * config.batch_size : (cstep + 1) * config.batch_size]]
-            decode_seqs_mini = [decode_seqs[idx] for idx in train_order[cstep * config.batch_size : (cstep + 1) * config.batch_size]]
-            target_seqs_mini = [target_seqs[idx] for idx in train_order[cstep * config.batch_size : (cstep + 1) * config.batch_size]]
-            target_mask_mini = [target_mask[idx] for idx in train_order[cstep * config.batch_size : (cstep + 1) * config.batch_size]]
+            text_seqs_mini = [text_seqs[idx] for idx in train_order[cstep * config.batch_size : (cstep + 1) * config.batch_size]]
+            print(text_seqs_mini)
+
+            encode_seqs_mini = dataloader4text.prepro_encode(text_seqs_mini.copy(), vocab)
+            decode_seqs_mini = dataloader4text.prepro_decode(text_seqs_mini.copy(), vocab)
+            target_seqs_mini = dataloader4text.prepro_target(text_seqs_mini.copy(), vocab)
+            target_mask_mini = tl.prepro.sequences_get_mask(target_seqs_mini, vocab.pad_id)
+
+
+            assert decode_seqs_mini.shape[0] == encode_seqs_mini.shape[0]
+            assert decode_seqs_mini.shape[1] == encode_seqs_mini.shape[1] + 1
+            assert decode_seqs_mini.shape == target_seqs_mini.shape
+            assert decode_seqs_mini.shape == target_mask_mini.shape
 
             global_step = cstep + epoch * train_steps
 
@@ -149,7 +154,7 @@ class Controller4Text(Controller):
         return all_loss / train_steps
 
     def controller_train(self, train_epoch=config.train_epoch):
-        encode_seqs, decode_seqs, target_seqs, target_mask = dataloader4text.load_data(dataloader4text.data_filename)
+        text_seqs, vocab   = dataloader4text.load_data(dataloader4text.data_filename)
 
         last_save_epoch = self.base_epoch
         global_epoch = self.base_epoch + 1
@@ -162,7 +167,7 @@ class Controller4Text(Controller):
 
         for epoch in range(train_epoch + 1):
 
-            self.__train__(global_epoch, encode_seqs, decode_seqs, target_seqs, target_mask)
+            self.__train__(global_epoch, text_seqs, vocab)
 
             if global_epoch > self.base_epoch and global_epoch % 10 == 0:
                 self.save_model(

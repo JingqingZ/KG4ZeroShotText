@@ -48,17 +48,21 @@ class Model4Text():
 
     def __get_network__(self, model_name, encode_seqs, decode_seqs, reuse=False):
         with tf.variable_scope(model_name, reuse=reuse):
-            tl.layers.set_name_reuse(reuse)
-            net_encode = EmbeddingInputlayer(
-                inputs = encode_seqs,
-                vocabulary_size = 10000,
-                embedding_size = 200,
-                name = 'encode_seq_embedding')
-            net_decode = EmbeddingInputlayer(
-                inputs = decode_seqs,
-                vocabulary_size = 10000,
-                embedding_size = 200,
-                name = 'decode_seq_embedding')
+
+            with tf.variable_scope("embedding") as vs:
+                net_encode = EmbeddingInputlayer(
+                    inputs=encode_seqs,
+                    vocabulary_size = 10000,
+                    embedding_size = 200,
+                    name='seq_embedding')
+                vs.reuse_variables()
+                tl.layers.set_name_reuse(True)  # remove if TL version == 1.8.0+
+                net_decode = EmbeddingInputlayer(
+                    inputs=decode_seqs,
+                    vocabulary_size = 10000,
+                    embedding_size = 200,
+                    name='seq_embedding')
+
             net_seq2seq = Seq2Seq(net_encode, net_decode,
                 cell_fn = tf.contrib.rnn.BasicLSTMCell,
                 n_hidden = 200,
@@ -71,6 +75,7 @@ class Model4Text():
                 return_seq_2d = True,
                 name = 'seq2seq')
             net_out = DenseLayer(net_seq2seq, n_units=10000, act=tf.identity, name='output')
+
         return net_out, net_seq2seq
 
 
