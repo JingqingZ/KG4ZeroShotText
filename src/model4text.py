@@ -9,9 +9,7 @@ from tensorlayer.layers import \
     DeConv2d, BatchNormLayer, EmbeddingInputlayer, \
     Seq2Seq, retrieve_seq_length_op2
 
-
-batch_size = 32
-
+import config
 
 class Model4Text():
 
@@ -34,9 +32,10 @@ class Model4Text():
 
 
     def __create_placeholders__(self):
-        self.encode_seqs = tf.placeholder(dtype=tf.int64, shape=[batch_size, None], name="encode_seqs")
-        self.decode_seqs = tf.placeholder(dtype=tf.int64, shape=[batch_size, None], name="decode_seqs")
-        self.target_seqs = tf.placeholder(dtype=tf.int64, shape=[batch_size, None], name="target_seqs")
+        self.encode_seqs = tf.placeholder(dtype=tf.int64, shape=[config.batch_size, None], name="encode_seqs")
+        self.decode_seqs = tf.placeholder(dtype=tf.int64, shape=[config.batch_size, None], name="decode_seqs")
+        self.target_seqs = tf.placeholder(dtype=tf.int64, shape=[config.batch_size, None], name="target_seqs")
+        self.target_mask = tf.placeholder(dtype=tf.int64, shape=[config.batch_size, None], name="target_mask")
 
 
     def __create_model__(self):
@@ -49,6 +48,7 @@ class Model4Text():
 
     def __get_network__(self, model_name, encode_seqs, decode_seqs, reuse=False):
         with tf.variable_scope(model_name, reuse=reuse):
+            tl.layers.set_name_reuse(reuse)
             net_encode = EmbeddingInputlayer(
                 inputs = encode_seqs,
                 vocabulary_size = 10000,
@@ -75,7 +75,13 @@ class Model4Text():
 
 
     def __create_loss__(self):
-        self.train_loss = tl.cost.cross_entropy_seq(self.train_net.outputs, self.target_seqs, batch_size=batch_size)
+        self.train_loss = tl.cost.cross_entropy_seq_with_mask(
+            logits=self.train_net.outputs,
+            target_seqs=self.target_seqs,
+            input_mask=self.target_mask,
+            return_details=False,
+            name='train_loss'
+        )
 
 
     def __create_training_op__(self):
@@ -97,4 +103,10 @@ class Model4Text():
 
 
 if __name__ == "__main__":
+    model = Model4Text(
+        model_name="text_encoding",
+        start_learning_rate=0.001,
+        decay_rate=0.8,
+        decay_steps=1000
+    )
     pass
