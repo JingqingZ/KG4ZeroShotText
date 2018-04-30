@@ -3,3 +3,5 @@ data/wiki/*
 wordEmbeddings/
 .idea/
 *.csv
+src/__pycache__/*
+src/*.npz
