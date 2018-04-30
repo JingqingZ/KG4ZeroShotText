@@ -1,18 +1,22 @@
 from text_to_uri import *
 import numpy as np
+import re
 import urllib.request, urllib.parse
 import xml.etree.ElementTree as ET
 
 # --------------------- Global Variables ---------------------
-entity2id = dict()
-id2entity = dict()
+TransE_entity2id = dict()
+TransE_id2entity = dict()
+ConceptNet_entity2id = dict()
+ConceptNet_id2entity = dict()
 
 # --------------------- Preparation --------------------------
 def prepare():
 	prepare_TransE()
+	prepare_ConceptNet()
 
 def prepare_TransE():
-	global entity2id, id2entity
+	global TransE_entity2id, TransE_id2entity
 	# Read ids of all entities
 	with open("../wordEmbeddings/entity2id.txt", "r", encoding="utf8") as f1:
 		content = f1.readlines()
@@ -21,9 +25,20 @@ def prepare_TransE():
 		for line in content:
 			st = line.split()[0][1:-1]
 			x = int(line.split()[1])
-			entity2id[st]=x
-			id2entity[x]=st			
+			TransE_entity2id[st]=x
+			TransE_id2entity[x]=st			
 	print("Finish preparing TransE indices")
+
+def prepare_ConceptNet():
+	global ConceptNet_entity2id, ConceptNet_id2entity
+	with open("../wordEmbeddings/numberbatch-en.txt", "r", encoding="utf8") as f1:
+		for i, line in enumerate(f1):
+			if i == 0: # Skip the first line
+				continue	
+			entity = line.split()[0]
+			ConceptNet_entity2id[entity] = i
+			ConceptNet_id2entity[i] = entity
+	print("Finish preparing ConceptNet indices")
 
 # --------------------- Main (router) -------------------------
 def get_vector_of_class(class_label, class_description, method):
@@ -46,10 +61,10 @@ def DBpedia_vector(class_label, class_description):
 		# res[0] is a uri, res[1] is a number of reference counts.
 		uri = urllib.parse.unquote(res[0].strip()).replace('"','').replace('|','')
 		# print(uri.encode("utf-8"), res[1])
-		if uri in entity2id:
-			print("Match with:", uri)
-			return TransE_vector(entity2id[uri])
-	print("LinkingError: Cannot find the corresponding entity in DBpedia")
+		if uri in TransE_entity2id:
+			print("DBpedia Match:", class_label, "-", uri)
+			return TransE_vector(TransE_entity2id[uri])
+	print("LinkingError: Cannot find the corresponding entity for", class_label,"in DBpedia")
 	return None
 
 def DBPLookup(query_string, maxHits = 10, query_class = None):
@@ -79,9 +94,34 @@ def TransE_vector(id):
 
 # --------------------- ConceptNet Vector ---------------------
 def ConceptNet_vector(class_label, class_description):
+	expected_uri = standardized_uri('en', class_label)
+	expected_uri = re.sub(r"/c/en/", '', expected_uri)
+	if expected_uri in ConceptNet_entity2id:
+			print("ConceptNet Match:", class_label, "-", expected_uri)
+			return ConceptNet_lookup_vector(ConceptNet_entity2id[expected_uri])
+	print("LinkingError: Cannot find the corresponding entity for", class_label,"in ConceptNet")
+	return None
+
+def ConceptNet_lookup_vector(id):
+	# Lookup the corresponding vector from the embedding file
+	with open("../wordEmbeddings/numberbatch-en.txt", "r", encoding="utf8") as f1:
+		for i, line in enumerate(f1):
+			if i == id:
+				return np.array([float(x) for x in line.strip().split()[1:]])
+		assert False, "ConceptNet_lookup_vector(id): ID is out of bound"
 
 # --------------------- Main Operation ------------------------
 if __name__ == "__main__":
 	prepare()
-	print(get_vector_of_class("Mathematics", "", "DBpedia"))
+	print(get_vector_of_class("Pricing of Securities", "", "DBpedia"))
+	get_vector_of_class("Human-Computer Interaction", "", "DBpedia")
+	get_vector_of_class("High Energy Physics - Theory", "", "DBpedia")
+	get_vector_of_class("Functional Analysis", "", "DBpedia")
+	get_vector_of_class("Biological Physics", "", "DBpedia")
+
+	print(get_vector_of_class("Pricing of Securities", "", "ConceptNet"))
+	get_vector_of_class("Human-Computer Interaction", "", "ConceptNet")
+	get_vector_of_class("High Energy Physics - Theory", "", "ConceptNet")
+	get_vector_of_class("Functional Analysis", "", "ConceptNet")
+	get_vector_of_class("Biological Physics", "", "ConceptNet")
 
