@@ -52,14 +52,14 @@ class Model4Text():
             with tf.variable_scope("embedding") as vs:
                 net_encode = EmbeddingInputlayer(
                     inputs=encode_seqs,
-                    vocabulary_size = 10000,
+                    vocabulary_size = config.vocab_size,
                     embedding_size = 200,
                     name='seq_embedding')
                 vs.reuse_variables()
                 tl.layers.set_name_reuse(True)  # remove if TL version == 1.8.0+
                 net_decode = EmbeddingInputlayer(
                     inputs=decode_seqs,
-                    vocabulary_size = 10000,
+                    vocabulary_size = config.vocab_size,
                     embedding_size = 200,
                     name='seq_embedding')
 
@@ -74,7 +74,7 @@ class Model4Text():
                 n_layer = 1,
                 return_seq_2d = True,
                 name = 'seq2seq')
-            net_out = DenseLayer(net_seq2seq, n_units=10000, act=tf.identity, name='output')
+            net_out = DenseLayer(net_seq2seq, n_units=config.vocab_size, act=tf.identity, name='output')
 
         return net_out, net_seq2seq
 
@@ -87,7 +87,13 @@ class Model4Text():
             return_details=False,
             name='train_loss'
         )
-
+        self.test_loss = tl.cost.cross_entropy_seq_with_mask(
+            logits=self.test_net.outputs,
+            target_seqs=self.target_seqs,
+            input_mask=self.target_mask,
+            return_details=False,
+            name='test_loss'
+        )
 
     def __create_training_op__(self):
         self.global_step = tf.placeholder(
