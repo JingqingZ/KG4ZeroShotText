@@ -28,11 +28,18 @@ with g.as_default() as graph:
 	train_op = tf.train.AdamOptimizer(learning_rate = lr).minimize(loss)
 	print_all_variables(train_only=True)
 	sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True, log_device_placement=False))
+	tl.layers.initialize_global_variables(sess)
+
+# --------------------- Setup model ---------------------------
+def load_model_parameter(filename, path = ''):
+	with g.as_default() as graph:
+		c = tl.files.load_npz(path = path, name = filename)
+		op_assign = M.assign(c[0])
+		sess.run(op_assign)
 
 # --------------------- Training ------------------------------
 def train_model(V_T_train, V_C_train, Y_train, dataset_name):
 	with g.as_default() as graph:
-		tl.layers.initialize_global_variables(sess)
 		n_step = int(len(V_T_train)/batch_size)
 		for epoch in range(n_epoch):
 			epoch_time = time.time()
@@ -118,11 +125,11 @@ def get_precision_recall_f1(prediction, ground_truth): # 1D data
 	return P, R, F1
 
 # --------------------- Helper functions ----------------------
-def get_pseudo_data(num_instance = 1000, num_class = 10, isTrain = True):
+def get_pseudo_data(num_instance = 1000, num_class = 10, with_answer = True):
 	positive_rate = 0.3
 	V_T = np.random.rand(num_instance, v_t_dim)
 	V_C = np.random.rand(num_class, v_c_dim)
-	if isTrain:	
+	if with_answer: 
 		Y_train = np.array([[1 if np.random.rand(1) < positive_rate else 0 for j in range(num_class)] for i in range(num_instance)])
 		return V_T, V_C, Y_train
 	else:
@@ -130,10 +137,11 @@ def get_pseudo_data(num_instance = 1000, num_class = 10, isTrain = True):
 
 # --------------------- Main Operation ------------------------
 if __name__ == "__main__":
-	V_T_train, V_C_train, Y_train = get_pseudo_data()
-	train_model(V_T_train, V_C_train, Y_train, 'pseudo')
-	V_T_test, V_C_test = get_pseudo_data(num_instance = 20, num_class = 5, isTrain = False)
-	print(predict(V_T_test, V_C_test))
-	test_model(V_T_train, V_C_train, Y_train, 'pseudo') # Test with training data
-	V_T_train, V_C_train, Y_train = get_pseudo_data()
-	test_model(V_T_train, V_C_train, Y_train, 'pseudo')
+	# V_T_train, V_C_train, Y_train = get_pseudo_data()
+	# train_model(V_T_train, V_C_train, Y_train, 'pseudo')
+	# V_T_test, V_C_test = get_pseudo_data(num_instance = 20, num_class = 5, with_answer = False)
+	# print(predict(V_T_test, V_C_test))
+	# test_model(V_T_train, V_C_train, Y_train, 'pseudo') # Test with training data
+	load_model_parameter('bilinear_matrix_pseudo.npz')
+	V_T_test, V_C_test, Y_test = get_pseudo_data()
+	test_model(V_T_test, V_C_test, Y_test, 'pseudo') # Test with testing data
