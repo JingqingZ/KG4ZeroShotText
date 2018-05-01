@@ -18,12 +18,14 @@ class Model4Text():
             model_name,
             start_learning_rate,
             decay_rate,
-            decay_steps
+            decay_steps,
+            vocab_size=config.vocab_size
     ):
         self.model_name = model_name
         self.start_learning_rate = start_learning_rate
         self.decay_rate = decay_rate
         self.decay_steps = decay_steps
+        self.vocab_size = vocab_size
 
         self.__create_placeholders__()
         self.__create_model__()
@@ -52,14 +54,14 @@ class Model4Text():
             with tf.variable_scope("embedding") as vs:
                 net_encode = EmbeddingInputlayer(
                     inputs=encode_seqs,
-                    vocabulary_size = config.vocab_size,
+                    vocabulary_size = self.vocab_size,
                     embedding_size = 200,
                     name='seq_embedding')
                 vs.reuse_variables()
                 tl.layers.set_name_reuse(True)  # remove if TL version == 1.8.0+
                 net_decode = EmbeddingInputlayer(
                     inputs=decode_seqs,
-                    vocabulary_size = config.vocab_size,
+                    vocabulary_size = self.vocab_size,
                     embedding_size = 200,
                     name='seq_embedding')
 

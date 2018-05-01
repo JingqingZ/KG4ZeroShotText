@@ -1,9 +1,9 @@
 data/arxiv/*
 wordEmbeddings/
 .idea/
+data/wiki/*.txt
 data/wiki/*.csv
 data/wiki/*.zip
 data/wiki/wiki_len_text.png
-data/wiki/vocab.txt
-data/wiki/processed_text.txt
 __pycache__/
+results/

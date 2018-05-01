@@ -110,7 +110,6 @@ class Controller4Text(Controller):
         for cstep in range(train_steps):
 
             text_seqs_mini = [text_seqs[idx] for idx in train_order[cstep * config.batch_size : (cstep + 1) * config.batch_size]]
-            # print(text_seqs_mini)
 
             encode_seqs_mini = dataloader4text.prepro_encode(text_seqs_mini.copy(), vocab)
             decode_seqs_mini = dataloader4text.prepro_decode(text_seqs_mini.copy(), vocab)
@@ -149,19 +148,20 @@ class Controller4Text(Controller):
                     self.model.target_mask: target_mask_mini,
                 })
 
+            del text_seqs_mini, encode_seqs_mini, decode_seqs_mini, target_seqs_mini, target_mask_mini
 
             all_loss += results[:-2]
 
-            if cstep % 100 == 0 and cstep > 0:
+            if cstep % 20 == 0 and cstep > 0:
                 print(
                     "[T%s] Epoch: [%3d][%4d/%4d] time: %.4f, lr: %.8f, loss: %s" %
-                    (mode[1:], epoch, cstep, train_steps, time.time() - step_time, results[-1], all_loss / (cstep + 1))
+                    (mode[1:], epoch, cstep, train_steps, time.time() - step_time, results[-2], all_loss / (cstep + 1))
                 )
                 step_time = time.time()
 
         print(
             "[T%s Sum] Epoch: [%3d] time: %.4f, lr: %.8f, loss: %s" %
-            (mode[1:], epoch, time.time() - start_time, results[-1], all_loss / train_steps)
+            (mode[1:], epoch, time.time() - start_time, results[-2], all_loss / train_steps)
         )
 
         return all_loss / train_steps
@@ -181,8 +181,10 @@ class Controller4Text(Controller):
 
             self.__run__(global_epoch, text_seqs[:-len(text_seqs) // 3], vocab, mode="train")
             self.__run__(global_epoch, text_seqs[-len(text_seqs) // 3:], vocab, mode="test")
+            # self.__run__(global_epoch, text_seqs[:3 * config.batch_size], vocab, mode="train")
+            # self.__run__(global_epoch, text_seqs[-3 * config.batch_size:], vocab, mode="test")
 
-            if global_epoch > self.base_epoch and global_epoch % 10 == 0:
+            if global_epoch > self.base_epoch and global_epoch % 1 == 0:
                 self.save_model(
                     path=self.model_save_dir,
                     global_step=global_epoch
@@ -193,18 +195,39 @@ class Controller4Text(Controller):
 
 
 if __name__ == "__main__":
-    text_seqs, vocab = dataloader4text.load_data(dataloader4text.data_filename)
+    '''
+    text_seqs, vocab = dataloader4text.load_data(
+        config.wiki_data_path, config.wiki_vocab_path, config.wiki_processed_path, 
+        column="text", force_process=False)
 
     with tf.Graph().as_default() as graph:
         tl.layers.clear_layers_name()
         mdl = model4text.Model4Text(
-            model_name="text_encoding",
-            start_learning_rate=0.001,
+            model_name="text_encoding_wiki",
+            start_learning_rate=0.0001,
             decay_rate=0.8,
-            decay_steps=2e5
+            decay_steps=4e3
         )
         ctl = Controller4Text(model=mdl, base_epoch=-1)
-        ctl.controller_train(text_seqs, vocab, train_epoch=50)
+        ctl.controller_train(text_seqs, vocab, train_epoch=20)
+        ctl.sess.close()
+    '''
+
+    text_seqs, vocab = dataloader4text.load_data(
+        config.arxiv_data_path, config.arxiv_vocab_path, config.arxiv_processed_path,
+        column="abstract", force_process=False)
+    text_seqs = text_seqs[:len(text_seqs) // 10]
+
+    with tf.Graph().as_default() as graph:
+        tl.layers.clear_layers_name()
+        mdl = model4text.Model4Text(
+            model_name="text_encoding_arxiv",
+            start_learning_rate=0.0001,
+            decay_rate=0.8,
+            decay_steps=4e3
+        )
+        ctl = Controller4Text(model=mdl, base_epoch=-1)
+        ctl.controller_train(text_seqs, vocab, train_epoch=20)
         ctl.sess.close()
     pass
 
