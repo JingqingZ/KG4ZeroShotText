@@ -1,6 +1,7 @@
 from text_to_uri import *
 import numpy as np
 import re
+import csv
 import urllib.request, urllib.parse
 import xml.etree.ElementTree as ET
 
@@ -41,11 +42,26 @@ def prepare_ConceptNet():
 	print("Finish preparing ConceptNet indices")
 
 # --------------------- Main (router) -------------------------
-def get_vector_of_class(class_label, class_description, method):
+def get_vector_of_class(class_label, class_description, method): 
+	# Return the corresponding uri and its vector
 	if method == 'DBpedia':
 		return DBpedia_vector(class_label, class_description)
 	elif method == 'ConceptNet':
 		return ConceptNet_vector(class_label, class_description)
+	else:
+		assert False, "Unsupported method '" + str(method) + "'"
+
+def get_vector_by_uri(method, uri):
+	if method == 'DBpedia':
+		if uri in TransE_entity2id:
+			return TransE_vector(TransE_entity2id[uri])
+		else:
+			return None
+	elif method == 'ConceptNet':
+		if uri in ConceptNet_entity2id:
+			return ConceptNet_lookup_vector(ConceptNet_entity2id[uri])
+		else:
+			return None
 	else:
 		assert False, "Unsupported method '" + str(method) + "'"
 
@@ -62,10 +78,10 @@ def DBpedia_vector(class_label, class_description):
 		uri = urllib.parse.unquote(res[0].strip()).replace('"','').replace('|','')
 		# print(uri.encode("utf-8"), res[1])
 		if uri in TransE_entity2id:
-			print("DBpedia Match:", class_label, "-", uri)
-			return TransE_vector(TransE_entity2id[uri])
-	print("LinkingError: Cannot find the corresponding entity for", class_label,"in DBpedia")
-	return None
+			# print("DBpedia Match:", class_label, "-", uri)
+			return uri, TransE_vector(TransE_entity2id[uri])
+	# print("LinkingError: Cannot find the corresponding entity for", class_label,"in DBpedia")
+	return None, None
 
 def DBPLookup(query_string, maxHits = 10, query_class = None):
 	# Request a result via DBpedia lookup API
@@ -97,10 +113,10 @@ def ConceptNet_vector(class_label, class_description):
 	expected_uri = standardized_uri('en', class_label)
 	expected_uri = re.sub(r"/c/en/", '', expected_uri)
 	if expected_uri in ConceptNet_entity2id:
-			print("ConceptNet Match:", class_label, "-", expected_uri)
-			return ConceptNet_lookup_vector(ConceptNet_entity2id[expected_uri])
-	print("LinkingError: Cannot find the corresponding entity for", class_label,"in ConceptNet")
-	return None
+			# print("ConceptNet Match:", class_label, "-", expected_uri)
+			return expected_uri, ConceptNet_lookup_vector(ConceptNet_entity2id[expected_uri])
+	# print("LinkingError: Cannot find the corresponding entity for", class_label,"in ConceptNet")
+	return None, None
 
 def ConceptNet_lookup_vector(id):
 	# Lookup the corresponding vector from the embedding file
@@ -113,15 +129,14 @@ def ConceptNet_lookup_vector(id):
 # --------------------- Main Operation ------------------------
 if __name__ == "__main__":
 	prepare()
+	print(get_vector_of_class("Functional Analysis", "", "DBpedia"))
+	print(get_vector_of_class("Functional Analysis", "", "ConceptNet"))
 	print(get_vector_of_class("Pricing of Securities", "", "DBpedia"))
-	get_vector_of_class("Human-Computer Interaction", "", "DBpedia")
-	get_vector_of_class("High Energy Physics - Theory", "", "DBpedia")
-	get_vector_of_class("Functional Analysis", "", "DBpedia")
-	get_vector_of_class("Biological Physics", "", "DBpedia")
-
 	print(get_vector_of_class("Pricing of Securities", "", "ConceptNet"))
-	get_vector_of_class("Human-Computer Interaction", "", "ConceptNet")
-	get_vector_of_class("High Energy Physics - Theory", "", "ConceptNet")
-	get_vector_of_class("Functional Analysis", "", "ConceptNet")
-	get_vector_of_class("Biological Physics", "", "ConceptNet")
+
+	# input_file = csv.DictReader(open("../data/arxiv/classLabels.csv"))
+	# for row in input_file:
+	# 	c_label = row['ClassLabel']
+	# 	uri, _ = get_vector_of_class(c_label, '', 'DBpedia')
+	# 	print(str(uri))
 
