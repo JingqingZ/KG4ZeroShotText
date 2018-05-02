@@ -3,6 +3,7 @@ import tensorlayer as tl
 from tensorlayer.layers import *
 import numpy as np
 import time
+import csv
 
 # --------------------- Global Variables ----------------------
 batch_size = 50
@@ -124,6 +125,49 @@ def get_precision_recall_f1(prediction, ground_truth): # 1D data
 	F1 = 2 * P * R / (P + R)
 	return P, R, F1
 
+# --------------------- Cross Validation ----------------------
+def load_dataset(dataset_name, knowledge_graph):
+	# requires class embeddings and text embeddings
+	if dataset_name == 'arxiv':
+		train_data, header = read_CSV_rows('../data/arxiv/train-arxiv.csv', have_header = True)
+		Y_train_all = np.array([row[5:] for row in train_data])
+		V_T_train = np.array([text_to_vector(row[2]) for row in train_data]) # row[2] = title, row[3] = abstract
+
+		test_data, header = read_CSV_rows('../data/arxiv/test-arxiv.csv', have_header = True)
+		Y_test_all = np.array([row[5:] for row in test_data])
+		V_T_test = np.array([text_to_vector(row[2]) for row in test_data]) # row[2] = title, row[3] = abstract
+		
+		classCodes = header[5:]
+		classList = read_CSV_dict('../data/arxiv/classLabelsWithManualLinking.csv') 
+		if knowledge_graph == 'DBpedia':
+			V_C_all = np.array([get_vector_by_uri('DBpedia', row['DBpediaManual']) for row in classList])
+		else:
+			assert False, "Unsupported knowledge_graph"
+		return V_T_train, Y_train_all, V_T_test, Y_test_all, V_C_all, classCodes 
+
+	elif dataset_name == 'wiki':
+		train_data, header = read_CSV_rows('../data/wiki/train-wiki.csv', have_header = True)
+		Y_train_all = np.array([row[5:] for row in train_data])
+		V_T_train = np.array([text_to_vector(row[2]) for row in train_data]) # row[2] = abstract
+
+		test_data, header = read_CSV_rows('../data/wiki/test-wiki.csv', have_header = True)
+		Y_test_all = np.array([row[5:] for row in test_data])
+		V_T_test = np.array([text_to_vector(row[2]) for row in test_data]) # row[2] = abstract
+		
+		classCodes = header[5:]
+		classList = read_CSV_dict('../data/wiki/classLabelsWiki.csv') 
+		if knowledge_graph == 'DBpedia':
+			V_C_all = np.array([get_vector_by_uri('DBpedia', row['DBpediaManual']) for row in classList])
+		else:
+			assert False, "Unsupported knowledge_graph"
+		return V_T_train, Y_train_all, V_T_test, Y_test_all, V_C_all, classCodes 
+
+	else:
+		assert False, "Unsupported dataset_name"
+
+def cross_class_validation():
+	pass
+
 # --------------------- Helper functions ----------------------
 def get_pseudo_data(num_instance = 1000, num_class = 10, with_answer = True):
 	positive_rate = 0.3
@@ -135,6 +179,22 @@ def get_pseudo_data(num_instance = 1000, num_class = 10, with_answer = True):
 	else:
 		return V_T, V_C
 
+def read_CSV_dict(filename):
+	input_file = csv.DictReader(open(filename, encoding = "utf8"))
+	return [row for row in input_file]
+
+def read_CSV_rows(filename, have_header = False):
+	with open(filename, 'r') as csvfile:
+		lines = csv.reader(csvfile)
+		results = []
+		header = None
+		for i, line in enumerate(lines):
+			if have_header and i == 0:
+				header = line
+			else:
+				results.append(line)
+	return results, header
+
 # --------------------- Main Operation ------------------------
 if __name__ == "__main__":
 	# V_T_train, V_C_train, Y_train = get_pseudo_data()
@@ -142,6 +202,8 @@ if __name__ == "__main__":
 	# V_T_test, V_C_test = get_pseudo_data(num_instance = 20, num_class = 5, with_answer = False)
 	# print(predict(V_T_test, V_C_test))
 	# test_model(V_T_train, V_C_train, Y_train, 'pseudo') # Test with training data
-	load_model_parameter('bilinear_matrix_pseudo.npz')
-	V_T_test, V_C_test, Y_test = get_pseudo_data()
-	test_model(V_T_test, V_C_test, Y_test, 'pseudo') # Test with testing data
+	# load_model_parameter('bilinear_matrix_pseudo.npz')
+	# V_T_test, V_C_test, Y_test = get_pseudo_data()
+	# test_model(V_T_test, V_C_test, Y_test, 'pseudo') # Test with testing data
+	# load_dataset('arxiv')
+	pass

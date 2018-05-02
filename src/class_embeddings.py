@@ -129,11 +129,25 @@ def ConceptNet_lookup_vector(id):
 # --------------------- Main Operation ------------------------
 if __name__ == "__main__":
 	prepare()
-	print(get_vector_of_class("Functional Analysis", "", "DBpedia"))
-	print(get_vector_of_class("Functional Analysis", "", "ConceptNet"))
-	print(get_vector_of_class("Pricing of Securities", "", "DBpedia"))
-	print(get_vector_of_class("Pricing of Securities", "", "ConceptNet"))
+	# print(get_vector_of_class("Functional Analysis", "", "DBpedia"))
+	# print(get_vector_of_class("Functional Analysis", "", "ConceptNet"))
+	# print(get_vector_of_class("Pricing of Securities", "", "DBpedia"))
+	# print(get_vector_of_class("Pricing of Securities", "", "ConceptNet"))
 
+	# with open("../data/arxiv/dbpediaClass.txt") as f1:
+	# 	for line in f1:
+	# 		uri = line.strip()
+	# 		uri = ''.join([' '+x if x.isupper() else x for x in uri])
+	# 		uri = uri.strip()
+	# 		# print(uri)
+	# 		uri = standardized_uri('en', uri)
+	# 		uri = re.sub(r"/c/en/", '', uri)
+	# 		# print(uri)
+	# 		if uri in ConceptNet_entity2id:
+	# 			print(uri)
+	# 		else:
+	# 			print('--None--')
+	
 	# input_file = csv.DictReader(open("../data/arxiv/classLabels.csv"))
 	# for row in input_file:
 	# 	c_label = row['ClassLabel']
