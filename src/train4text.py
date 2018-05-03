@@ -150,7 +150,7 @@ class Controller4Text(Controller):
 
             del text_seqs_mini, encode_seqs_mini, decode_seqs_mini, target_seqs_mini, target_mask_mini
 
-            all_loss += results[:-2]
+            all_loss += results[:1]
 
             if cstep % 20 == 0 and cstep > 0:
                 print(
@@ -166,7 +166,90 @@ class Controller4Text(Controller):
 
         return all_loss / train_steps
 
-    def controller_train(self, text_seqs, vocab, train_epoch=config.train_epoch):
+
+    def __inference__(self, epoch, text_seqs, vocab):
+
+        start_time = time.time()
+        step_time = time.time()
+
+        text_state_list = list()
+
+        for cstep in range(len(text_seqs)):
+
+            text_seqs_mini = text_seqs[cstep : cstep + 1]
+            encode_seqs_mini = dataloader4text.prepro_encode(text_seqs_mini.copy(), vocab)
+            decode_seqs_mini = dataloader4text.prepro_decode(text_seqs_mini.copy(), vocab)
+
+            state = self.sess.run(
+                self.model.inference_seq2seq.final_state_encode,
+                feed_dict={
+                    self.model.encode_seqs_inference: encode_seqs_mini,
+                })
+
+            text_state_list.append(state)
+
+            o, state = self.sess.run([
+                self.model.inference_y,
+                self.model.inference_seq2seq.final_state_decode
+            ], feed_dict={
+                self.model.inference_seq2seq.initial_state_decode: state,
+                self.model.decode_seqs_inference: [[vocab.start_id]],
+            })
+
+            word_id = tl.nlp.sample_top(o[0], top_k=3)
+            word = vocab.id_to_word(word_id)
+
+            sentence = [word]
+            sentence_id = [word_id]
+
+            for _ in range(1, len(text_seqs_mini[0]) - 1):
+                o, state = self.sess.run([
+                    self.model.inference_y,
+                    self.model.inference_seq2seq.final_state_decode
+                ], feed_dict={
+                    self.model.inference_seq2seq.initial_state_decode: state,
+                    self.model.decode_seqs_inference: [[word_id]]
+                })
+
+                word_id = tl.nlp.sample_top(o[0], top_k=3)
+                word = vocab.id_to_word(word_id)
+
+                if word_id == vocab.end_id:
+                    break
+
+                sentence = sentence + [word]
+                sentence_id = sentence_id + [word_id]
+
+            full_out = self.sess.run(
+                self.model.inference_y
+            , feed_dict={
+                self.model.encode_seqs_inference: encode_seqs_mini,
+                self.model.decode_seqs_inference: decode_seqs_mini
+            })
+
+            decode_recons_sentence = list()
+            for o in full_out:
+                word_id = tl.nlp.sample_top(o, top_k=3)
+                word = vocab.id_to_word(word_id)
+                decode_recons_sentence.append(word)
+
+            origin_sentence = [vocab.id_to_word(text_id) for text_id in text_seqs_mini[0]]
+            encode_sentence = [vocab.id_to_word(text_id) for text_id in encode_seqs_mini[0]]
+
+            print(" origin > ", ' '.join(origin_sentence))
+            print(" encode > ", ' '.join(encode_sentence))
+            print(" decode > ", ' '.join(decode_recons_sentence))
+            print(" recons > ", ' '.join(sentence))
+            print("--------------------")
+            # print(" recons > ", ' '.join([str(id) for id in sentence_id]))
+
+        return text_state_list
+
+
+    def controller(self, text_seqs, vocab, inference=False, train_epoch=config.train_epoch):
+
+        if inference:
+            assert self.base_epoch > 0
 
         last_save_epoch = self.base_epoch
         global_epoch = self.base_epoch + 1
@@ -177,28 +260,42 @@ class Controller4Text(Controller):
                 global_step=last_save_epoch
             )
 
-        for epoch in range(train_epoch + 1):
+        if inference:
 
-            self.__run__(global_epoch, text_seqs[:-len(text_seqs) // 3], vocab, mode="train")
-            self.__run__(global_epoch, text_seqs[-len(text_seqs) // 3:], vocab, mode="test")
-            # self.__run__(global_epoch, text_seqs[:3 * config.batch_size], vocab, mode="train")
-            # self.__run__(global_epoch, text_seqs[-3 * config.batch_size:], vocab, mode="test")
+            self.__inference__(global_epoch, text_seqs[:3], vocab)
+            self.__inference__(global_epoch, text_seqs[-3:], vocab)
 
-            if global_epoch > self.base_epoch and global_epoch % 1 == 0:
-                self.save_model(
-                    path=self.model_save_dir,
-                    global_step=global_epoch
-                )
-                last_save_epoch = global_epoch
+        else:
 
-            global_epoch += 1
+            for epoch in range(train_epoch + 1):
+
+                self.__run__(global_epoch, text_seqs[:-len(text_seqs) // 10], vocab, mode="train")
+                self.__run__(global_epoch, text_seqs[-len(text_seqs) // 10:], vocab, mode="test")
+
+                self.__inference__(global_epoch, text_seqs[:3], vocab)
+                self.__inference__(global_epoch, text_seqs[-3:], vocab)
+
+                if global_epoch > self.base_epoch and global_epoch % 1 == 0:
+                    self.save_model(
+                        path=self.model_save_dir,
+                        global_step=global_epoch
+                    )
+                    last_save_epoch = global_epoch
+
+                global_epoch += 1
 
 
 if __name__ == "__main__":
     '''
-    text_seqs, vocab = dataloader4text.load_data(
-        config.wiki_data_path, config.wiki_vocab_path, config.wiki_processed_path, 
-        column="text", force_process=False)
+
+    vocab = dataloader4text.build_vocabulary_from_full_corpus(
+        config.wiki_full_data_path, config.wiki_vocab_path, column="text", force_process=False
+    )
+
+    text_seqs = dataloader4text.load_data_from_text_given_vocab(
+        config.wiki_train_data_path, vocab, config.wiki_train_processed_path,
+        column="text", force_process=False
+    )
 
     with tf.Graph().as_default() as graph:
         tl.layers.clear_layers_name()
@@ -209,14 +306,22 @@ if __name__ == "__main__":
             decay_steps=4e3
         )
         ctl = Controller4Text(model=mdl, base_epoch=-1)
-        ctl.controller_train(text_seqs, vocab, train_epoch=20)
+        ctl.controller(text_seqs, vocab, train_epoch=20)
+        # ctl.controller(text_seqs, vocab, inference=True)
         ctl.sess.close()
+
     '''
 
-    text_seqs, vocab = dataloader4text.load_data(
-        config.arxiv_data_path, config.arxiv_vocab_path, config.arxiv_processed_path,
-        column="abstract", force_process=False)
-    text_seqs = text_seqs[:len(text_seqs) // 10]
+    vocab = dataloader4text.build_vocabulary_from_full_corpus(
+        config.arxiv_full_data_path, config.arxiv_vocab_path, column="abstract", force_process=False
+    )
+
+    text_seqs = dataloader4text.load_data_from_text_given_vocab(
+        config.arxiv_train_data_path, vocab, config.arxiv_train_processed_path,
+        column="abstract", force_process=False
+    )
+
+    # text_seqs = text_seqs[:len(text_seqs) // 10]
 
     with tf.Graph().as_default() as graph:
         tl.layers.clear_layers_name()
@@ -226,8 +331,9 @@ if __name__ == "__main__":
             decay_rate=0.8,
             decay_steps=4e3
         )
-        ctl = Controller4Text(model=mdl, base_epoch=-1)
-        ctl.controller_train(text_seqs, vocab, train_epoch=20)
+        ctl = Controller4Text(model=mdl, base_epoch=20)
+        # ctl.controller(text_seqs, vocab, train_epoch=20)
+        ctl.controller(text_seqs, vocab, inference=True)
         ctl.sess.close()
     pass
 

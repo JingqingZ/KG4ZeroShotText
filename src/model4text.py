@@ -39,13 +39,22 @@ class Model4Text():
         self.target_seqs = tf.placeholder(dtype=tf.int64, shape=[config.batch_size, None], name="target_seqs")
         self.target_mask = tf.placeholder(dtype=tf.int64, shape=[config.batch_size, None], name="target_mask")
 
+        self.encode_seqs_inference = tf.placeholder(dtype=tf.int64, shape=[1, None], name="encode_seqs_inference")
+        self.decode_seqs_inference = tf.placeholder(dtype=tf.int64, shape=[1, None], name="decode_seqs_inference")
+
 
     def __create_model__(self):
         self.train_net, self.train_seq2seq = self.__get_network__(self.model_name, self.encode_seqs, self.decode_seqs, reuse=False)
         self.test_net, self.test_seq2seq = self.__get_network__(self.model_name, self.encode_seqs, self.decode_seqs, reuse=True)
+        self.inference_net, self.inference_seq2seq = self.__get_network__(self.model_name, self.encode_seqs_inference, self.decode_seqs_inference, reuse=True)
 
         self.train_text_state = self.train_seq2seq.final_state_encode
         self.test_text_state = self.test_seq2seq.final_state_encode
+        self.inference_text_state = self.inference_seq2seq.final_state_encode
+
+        self.train_y = tf.nn.softmax(self.train_net.outputs)
+        self.test_y = tf.nn.softmax(self.test_net.outputs)
+        self.inference_y = tf.nn.softmax(self.inference_net.outputs)
 
 
     def __get_network__(self, model_name, encode_seqs, decode_seqs, reuse=False):
@@ -55,19 +64,19 @@ class Model4Text():
                 net_encode = EmbeddingInputlayer(
                     inputs=encode_seqs,
                     vocabulary_size = self.vocab_size,
-                    embedding_size = 200,
+                    embedding_size = config.embedding_dim,
                     name='seq_embedding')
                 vs.reuse_variables()
                 tl.layers.set_name_reuse(True)  # remove if TL version == 1.8.0+
                 net_decode = EmbeddingInputlayer(
                     inputs=decode_seqs,
                     vocabulary_size = self.vocab_size,
-                    embedding_size = 200,
+                    embedding_size = config.embedding_dim,
                     name='seq_embedding')
 
             net_seq2seq = Seq2Seq(net_encode, net_decode,
                 cell_fn = tf.contrib.rnn.BasicLSTMCell,
-                n_hidden = 200,
+                n_hidden = config.hidden_dim,
                 initializer = tf.random_uniform_initializer(-0.1, 0.1),
                 encode_sequence_length = retrieve_seq_length_op2(encode_seqs),
                 decode_sequence_length = retrieve_seq_length_op2(decode_seqs),
