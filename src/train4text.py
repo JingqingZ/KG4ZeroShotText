@@ -98,7 +98,9 @@ class Controller4Text(Controller):
     def __run__(self, epoch, text_seqs, vocab, mode):
 
         train_order = list(range(len(text_seqs)))
-        random.shuffle(train_order)
+
+        if mode == "train":
+            random.shuffle(train_order)
 
         start_time = time.time()
         step_time = time.time()
@@ -106,6 +108,8 @@ class Controller4Text(Controller):
         all_loss = np.zeros(1)
 
         train_steps = len(train_order) // config.batch_size
+
+        text_state_list = list()
 
         for cstep in range(train_steps):
 
@@ -126,6 +130,7 @@ class Controller4Text(Controller):
             if mode == "train":
                 results = self.sess.run([
                     self.model.train_loss,
+                    self.model.train_text_state,
                     self.model.learning_rate,
                     self.model.optim
                 ], feed_dict={
@@ -139,6 +144,7 @@ class Controller4Text(Controller):
             elif mode == "test":
                 results = self.sess.run([
                     self.model.test_loss,
+                    self.model.test_text_state,
                     tf.constant(-1),
                     tf.constant(-1)
                 ], feed_dict={
@@ -147,6 +153,9 @@ class Controller4Text(Controller):
                     self.model.target_seqs: target_seqs_mini,
                     self.model.target_mask: target_mask_mini,
                 })
+
+            for i in range(config.batch_size):
+                text_state_list.append(results[1][1][i]) # get the hidden state from LSTMStateTuple
 
             del text_seqs_mini, encode_seqs_mini, decode_seqs_mini, target_seqs_mini, target_mask_mini
 
@@ -164,7 +173,10 @@ class Controller4Text(Controller):
             (mode[1:], epoch, time.time() - start_time, results[-2], all_loss / train_steps)
         )
 
-        return all_loss / train_steps
+        text_state_list = np.array(text_state_list)
+        assert text_state_list.shape[0] == len(text_seqs) // config.batch_size * config.batch_size
+
+        return text_state_list
 
 
     def __inference__(self, epoch, text_seqs, vocab, verify=False):
@@ -186,7 +198,7 @@ class Controller4Text(Controller):
                     self.model.encode_seqs_inference: encode_seqs_mini,
                 })
 
-            text_state_list.append(state)
+            text_state_list.append(state[1][0]) # get hidden state from LSTMStateTuple
 
             # for verification
             if verify:
@@ -245,7 +257,10 @@ class Controller4Text(Controller):
                 print(" recons > ", ' '.join(sentence))
                 print("--------------------")
 
-        return np.array(text_state_list)
+        text_state_list = np.array(text_state_list)
+        assert text_state_list.shape[0] == len(text_seqs)
+
+        return text_state_list
 
 
     def controller(self, text_seqs, vocab, inference=False, train_epoch=config.train_epoch):
@@ -264,10 +279,22 @@ class Controller4Text(Controller):
 
         if inference:
 
-            state = self.__inference__(global_epoch, text_seqs[:3], vocab, verify=False)
-            print(state.shape)
-            state = self.__inference__(global_epoch, text_seqs[-3:], vocab, verify=False)
-            print(state.shape)
+            # state = self.__inference__(global_epoch, text_seqs[:3], vocab, verify=False)
+            # print(state.shape)
+            # state = self.__inference__(global_epoch, text_seqs[-3:], vocab, verify=False)
+            # print(state.shape)
+
+            text_state1 = self.__run__(global_epoch, text_seqs[:], vocab, mode="test")  # inference by minibatch, so some seq will be missing
+
+            if text_state1.shape[0] < len(text_seqs):
+                text_state2 = self.__inference__(global_epoch, text_seqs[text_state1.shape[0]:], vocab) # those seq that was missing by minibatch
+                text_state = np.concatenate((text_state1, text_state2), axis=0)
+            else:
+                text_state = text_state1
+
+            assert text_state.shape == (len(text_seqs), config.hidden_dim)
+            print("Text state ", text_state.shape)
+            return text_state
 
         else:
 
@@ -291,12 +318,18 @@ class Controller4Text(Controller):
 
 if __name__ == "__main__":
 
+    '''
     vocab = dataloader4text.build_vocabulary_from_full_corpus(
         config.wiki_full_data_path, config.wiki_vocab_path, column="text", force_process=False
     )
 
-    text_seqs = dataloader4text.load_data_from_text_given_vocab(
+    train_text_seqs = dataloader4text.load_data_from_text_given_vocab(
         config.wiki_train_data_path, vocab, config.wiki_train_processed_path,
+        column="text", force_process=False
+    )
+
+    test_text_seqs = dataloader4text.load_data_from_text_given_vocab(
+        config.wiki_test_data_path, vocab, config.wiki_test_processed_path,
         column="text", force_process=False
     )
 
@@ -309,23 +342,31 @@ if __name__ == "__main__":
             decay_steps=4e3,
             # vocab_size=5e3
         )
-        ctl = Controller4Text(model=mdl, base_epoch=-1)
+        ctl = Controller4Text(model=mdl, base_epoch=20)
         # ctl.controller(text_seqs, vocab, train_epoch=20)
-        ctl.controller(text_seqs, vocab, inference=True)
+
+        text_state = ctl.controller(train_text_seqs, vocab, inference=True)
+        np.savez(config.wiki_train_state_npz_path, state=text_state)
+
+        text_state = ctl.controller(test_text_seqs, vocab, inference=True)
+        np.savez(config.wiki_test_state_npz_path, state=text_state)
+
         ctl.sess.close()
 
     '''
-
     vocab = dataloader4text.build_vocabulary_from_full_corpus(
         config.arxiv_full_data_path, config.arxiv_vocab_path, column="abstract", force_process=False
     )
 
-    text_seqs = dataloader4text.load_data_from_text_given_vocab(
+    train_text_seqs = dataloader4text.load_data_from_text_given_vocab(
         config.arxiv_train_data_path, vocab, config.arxiv_train_processed_path,
         column="abstract", force_process=False
     )
 
-    # text_seqs = text_seqs[:len(text_seqs) // 10]
+    # test_text_seqs = dataloader4text.load_data_from_text_given_vocab(
+    #     config.arxiv_test_data_path, vocab, config.arxiv_test_processed_path,
+    #     column="abstract", force_process=False
+    # )
 
     with tf.Graph().as_default() as graph:
         tl.layers.clear_layers_name()
@@ -338,9 +379,14 @@ if __name__ == "__main__":
         )
         ctl = Controller4Text(model=mdl, base_epoch=20)
         # ctl.controller(text_seqs, vocab, train_epoch=20)
-        ctl.controller(text_seqs, vocab, inference=True)
+
+        text_state = ctl.controller(train_text_seqs, vocab, inference=True)
+        np.savez(config.arxiv_train_state_npz_path, state=text_state)
+
+        # text_state = ctl.controller(test_text_seqs, vocab, inference=True)
+        # np.savez(config.arxiv_test_state_npz_path, state=text_state)
+
         ctl.sess.close()
-    '''
     pass
 
 

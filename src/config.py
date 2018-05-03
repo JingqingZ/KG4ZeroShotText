@@ -26,6 +26,10 @@ wiki_test_processed_path = wiki_dir + "processed_test_text.pkl"
 
 wiki_vocab_path = wiki_dir + "vocab.txt"
 
+
+wiki_train_state_npz_path = wiki_dir + "train_wiki_state.npz"
+wiki_test_state_npz_path = wiki_dir + "test_wiki_state.npz"
+
 ##################################
 
 arxiv_dir = "../data/arxiv/"
@@ -39,5 +43,8 @@ arxiv_test_data_path = arxiv_dir + "test-arxiv.csv"
 arxiv_test_processed_path = arxiv_dir + "processed_test_text.pkl"
 
 arxiv_vocab_path = arxiv_dir + "vocab.txt"
+
+arxiv_train_state_npz_path = arxiv_dir + "train_arxiv_state.npz"
+arxiv_test_state_npz_path = arxiv_dir + "test_arxiv_state.npz"
 
 
