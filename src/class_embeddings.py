@@ -42,12 +42,12 @@ def prepare_ConceptNet():
 	print("Finish preparing ConceptNet indices")
 
 # --------------------- Main (router) -------------------------
-def get_vector_of_class(class_label, class_description, method): 
+def get_vector_of_class(class_label, class_description, method, corpus = None): 
 	# Return the corresponding uri and its vector
 	if method == 'DBpedia':
 		return DBpedia_vector(class_label, class_description)
 	elif method == 'ConceptNet':
-		return ConceptNet_vector(class_label, class_description)
+		return ConceptNet_vector(class_label, class_description, corpus)
 	else:
 		assert False, "Unsupported method '" + str(method) + "'"
 
@@ -109,14 +109,30 @@ def TransE_vector(id):
 		assert False, "TransE_vector(id): ID is out of bound"
 
 # --------------------- ConceptNet Vector ---------------------
-def ConceptNet_vector(class_label, class_description):
+def ConceptNet_vector(class_label, class_description, corpus = None):
 	expected_uri = standardized_uri('en', class_label)
 	expected_uri = re.sub(r"/c/en/", '', expected_uri)
 	if expected_uri in ConceptNet_entity2id:
-			# print("ConceptNet Match:", class_label, "-", expected_uri)
-			return expected_uri, ConceptNet_lookup_vector(ConceptNet_entity2id[expected_uri])
+		# print("ConceptNet Match:", class_label, "-", expected_uri)
+		return expected_uri, ConceptNet_lookup_vector(ConceptNet_entity2id[expected_uri])
 	# print("LinkingError: Cannot find the corresponding entity for", class_label,"in ConceptNet")
-	return None, None
+	elif corpus is not None:
+		idf = calculate_IDF(class_label, corpus)
+		vec_to_combine = []
+		word_to_combine = []
+		denominator = 0
+		for widf in idf:
+			word = re.sub(r"/c/en/", '', standardized_uri('en', widf[0]))
+			if word in ConceptNet_entity2id:
+				vec_to_combine.append(widf[1]*ConceptNet_lookup_vector(ConceptNet_entity2id[word]))
+				word_to_combine.append((word, widf[1]))
+				denominator += widf[1]
+		if denominator == 0:
+			return None, None
+		else:
+			return word_to_combine, np.sum(vec_to_combine, axis = 0) / denominator 
+	else:
+		return None, None
 
 def ConceptNet_lookup_vector(id):
 	# Lookup the corresponding vector from the embedding file
@@ -125,6 +141,17 @@ def ConceptNet_lookup_vector(id):
 			if i == id:
 				return np.array([float(x) for x in line.strip().split()[1:]])
 		assert False, "ConceptNet_lookup_vector(id): ID is out of bound"
+
+def calculate_IDF(phrase, corpus):
+	words = phrase.strip().split()
+	idf = []
+	for w in words:
+		n = 0
+		for p in corpus:
+			if w.lower() in p.strip().lower().split():
+				n += 1
+		idf.append((w.lower(), np.log(1 + len(corpus)/n)))
+	return idf
 
 # --------------------- Main Operation ------------------------
 if __name__ == "__main__":
@@ -135,19 +162,21 @@ if __name__ == "__main__":
 	# print(get_vector_of_class("Pricing of Securities", "", "ConceptNet"))
 
 	# with open("../data/arxiv/dbpediaClass.txt") as f1:
-	# 	for line in f1:
-	# 		uri = line.strip()
-	# 		uri = ''.join([' '+x if x.isupper() else x for x in uri])
-	# 		uri = uri.strip()
-	# 		# print(uri)
-	# 		uri = standardized_uri('en', uri)
-	# 		uri = re.sub(r"/c/en/", '', uri)
-	# 		# print(uri)
-	# 		if uri in ConceptNet_entity2id:
-	# 			print(uri)
-	# 		else:
-	# 			print('--None--')
-	
+	# 	class_labels = [line.strip() for line in f1]
+	# 	for class_label in class_labels:
+	# 		print(get_vector_of_class(class_label, '', 'ConceptNet', corpus = class_labels)[0])
+	# 		print('-----------------------------------------')
+			# uri = ''.join([' '+x if x.isupper() else x for x in uri])
+			# uri = uri.strip()
+			# # print(uri)
+			# uri = standardized_uri('en', uri)
+			# uri = re.sub(r"/c/en/", '', uri)
+			# # print(uri)
+			# if uri in ConceptNet_entity2id:
+			# 	print(uri)
+			# else:
+			# 	print('--None--')
+
 	# input_file = csv.DictReader(open("../data/arxiv/classLabels.csv"))
 	# for row in input_file:
 	# 	c_label = row['ClassLabel']

@@ -141,6 +141,9 @@ def load_dataset(dataset_name, knowledge_graph):
 		classList = read_CSV_dict('../data/arxiv/classLabelsWithManualLinking.csv') 
 		if knowledge_graph == 'DBpedia':
 			V_C_all = np.array([get_vector_by_uri('DBpedia', row['DBpediaManual']) for row in classList])
+		elif knowledge_graph == 'ConceptNet':
+			class_labels = [row['ClassLabel'].strip() for row in classList]
+			V_C_all = np.array([get_vector_of_class(c, '', 'ConceptNet', corpus = class_labels)[1] for c in class_labels]) 
 		else:
 			assert False, "Unsupported knowledge_graph"
 		return V_T_train, Y_train_all, V_T_test, Y_test_all, V_C_all, classCodes 
@@ -158,6 +161,9 @@ def load_dataset(dataset_name, knowledge_graph):
 		classList = read_CSV_dict('../data/wiki/classLabelsWiki.csv') 
 		if knowledge_graph == 'DBpedia':
 			V_C_all = np.array([get_vector_by_uri('DBpedia', row['DBpediaManual']) for row in classList])
+		elif knowledge_graph == 'ConceptNet':
+			class_labels = [row['ClassLabel'].strip() for row in classList]
+			V_C_all = np.array([get_vector_of_class(c, '', 'ConceptNet', corpus = class_labels)[1] for c in class_labels]) 
 		else:
 			assert False, "Unsupported knowledge_graph"
 		return V_T_train, Y_train_all, V_T_test, Y_test_all, V_C_all, classCodes 
