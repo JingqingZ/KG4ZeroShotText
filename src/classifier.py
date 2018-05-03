@@ -5,6 +5,8 @@ import numpy as np
 import time
 import csv
 
+from class_embeddings import *
+
 # --------------------- Global Variables ----------------------
 batch_size = 50
 v_t_dim = 300
