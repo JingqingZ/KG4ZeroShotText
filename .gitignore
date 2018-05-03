@@ -1,4 +1,5 @@
 data/arxiv/*
+data/wiki/*
 wordEmbeddings/
 .idea/
 data/wiki/*.txt
@@ -8,3 +9,4 @@ data/wiki/*.pkl
 data/wiki/wiki_len_text.png
 __pycache__/
 results/
+src/*.npz
