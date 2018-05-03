@@ -2,6 +2,11 @@ data/arxiv/*
 data/wiki/*
 wordEmbeddings/
 .idea/
-*.csv
-src/__pycache__/*
+data/wiki/*.txt
+data/wiki/*.csv
+data/wiki/*.zip
+data/wiki/*.pkl
+data/wiki/wiki_len_text.png
+__pycache__/
+results/
 src/*.npz
