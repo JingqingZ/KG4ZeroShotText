@@ -167,7 +167,7 @@ class Controller4Text(Controller):
         return all_loss / train_steps
 
 
-    def __inference__(self, epoch, text_seqs, vocab):
+    def __inference__(self, epoch, text_seqs, vocab, verify=False):
 
         start_time = time.time()
         step_time = time.time()
@@ -188,62 +188,64 @@ class Controller4Text(Controller):
 
             text_state_list.append(state)
 
-            o, state = self.sess.run([
-                self.model.inference_y,
-                self.model.inference_seq2seq.final_state_decode
-            ], feed_dict={
-                self.model.inference_seq2seq.initial_state_decode: state,
-                self.model.decode_seqs_inference: [[vocab.start_id]],
-            })
+            # for verification
+            if verify:
 
-            word_id = tl.nlp.sample_top(o[0], top_k=3)
-            word = vocab.id_to_word(word_id)
-
-            sentence = [word]
-            sentence_id = [word_id]
-
-            for _ in range(1, len(text_seqs_mini[0]) - 1):
                 o, state = self.sess.run([
                     self.model.inference_y,
                     self.model.inference_seq2seq.final_state_decode
                 ], feed_dict={
                     self.model.inference_seq2seq.initial_state_decode: state,
-                    self.model.decode_seqs_inference: [[word_id]]
+                    self.model.decode_seqs_inference: [[vocab.start_id]],
                 })
 
                 word_id = tl.nlp.sample_top(o[0], top_k=3)
                 word = vocab.id_to_word(word_id)
 
-                if word_id == vocab.end_id:
-                    break
+                sentence = [word]
+                sentence_id = [word_id]
 
-                sentence = sentence + [word]
-                sentence_id = sentence_id + [word_id]
+                for _ in range(1, len(text_seqs_mini[0]) - 1):
+                    o, state = self.sess.run([
+                        self.model.inference_y,
+                        self.model.inference_seq2seq.final_state_decode
+                    ], feed_dict={
+                        self.model.inference_seq2seq.initial_state_decode: state,
+                        self.model.decode_seqs_inference: [[word_id]]
+                    })
 
-            full_out = self.sess.run(
-                self.model.inference_y
-            , feed_dict={
-                self.model.encode_seqs_inference: encode_seqs_mini,
-                self.model.decode_seqs_inference: decode_seqs_mini
-            })
+                    word_id = tl.nlp.sample_top(o[0], top_k=3)
+                    word = vocab.id_to_word(word_id)
 
-            decode_recons_sentence = list()
-            for o in full_out:
-                word_id = tl.nlp.sample_top(o, top_k=3)
-                word = vocab.id_to_word(word_id)
-                decode_recons_sentence.append(word)
+                    if word_id == vocab.end_id:
+                        break
 
-            origin_sentence = [vocab.id_to_word(text_id) for text_id in text_seqs_mini[0]]
-            encode_sentence = [vocab.id_to_word(text_id) for text_id in encode_seqs_mini[0]]
+                    sentence = sentence + [word]
+                    sentence_id = sentence_id + [word_id]
 
-            print(" origin > ", ' '.join(origin_sentence))
-            print(" encode > ", ' '.join(encode_sentence))
-            print(" decode > ", ' '.join(decode_recons_sentence))
-            print(" recons > ", ' '.join(sentence))
-            print("--------------------")
-            # print(" recons > ", ' '.join([str(id) for id in sentence_id]))
+                full_out = self.sess.run(
+                    self.model.inference_y
+                , feed_dict={
+                    self.model.encode_seqs_inference: encode_seqs_mini,
+                    self.model.decode_seqs_inference: decode_seqs_mini
+                })
 
-        return text_state_list
+                decode_recons_sentence = list()
+                for o in full_out:
+                    word_id = tl.nlp.sample_top(o, top_k=3)
+                    word = vocab.id_to_word(word_id)
+                    decode_recons_sentence.append(word)
+
+                origin_sentence = [vocab.id_to_word(text_id) for text_id in text_seqs_mini[0]]
+                encode_sentence = [vocab.id_to_word(text_id) for text_id in encode_seqs_mini[0]]
+
+                print(" origin > ", ' '.join(origin_sentence))
+                print(" encode > ", ' '.join(encode_sentence))
+                print(" decode > ", ' '.join(decode_recons_sentence))
+                print(" recons > ", ' '.join(sentence))
+                print("--------------------")
+
+        return np.array(text_state_list)
 
 
     def controller(self, text_seqs, vocab, inference=False, train_epoch=config.train_epoch):
@@ -262,8 +264,10 @@ class Controller4Text(Controller):
 
         if inference:
 
-            self.__inference__(global_epoch, text_seqs[:3], vocab)
-            self.__inference__(global_epoch, text_seqs[-3:], vocab)
+            state = self.__inference__(global_epoch, text_seqs[:3], vocab, verify=False)
+            print(state.shape)
+            state = self.__inference__(global_epoch, text_seqs[-3:], vocab, verify=False)
+            print(state.shape)
 
         else:
 
@@ -286,7 +290,6 @@ class Controller4Text(Controller):
 
 
 if __name__ == "__main__":
-    '''
 
     vocab = dataloader4text.build_vocabulary_from_full_corpus(
         config.wiki_full_data_path, config.wiki_vocab_path, column="text", force_process=False
@@ -303,11 +306,12 @@ if __name__ == "__main__":
             model_name="text_encoding_wiki",
             start_learning_rate=0.0001,
             decay_rate=0.8,
-            decay_steps=4e3
+            decay_steps=4e3,
+            # vocab_size=5e3
         )
         ctl = Controller4Text(model=mdl, base_epoch=-1)
-        ctl.controller(text_seqs, vocab, train_epoch=20)
-        # ctl.controller(text_seqs, vocab, inference=True)
+        # ctl.controller(text_seqs, vocab, train_epoch=20)
+        ctl.controller(text_seqs, vocab, inference=True)
         ctl.sess.close()
 
     '''
@@ -329,12 +333,14 @@ if __name__ == "__main__":
             model_name="text_encoding_arxiv",
             start_learning_rate=0.0001,
             decay_rate=0.8,
-            decay_steps=4e3
+            decay_steps=4e3,
+            # vocab_size=config.vocab_size
         )
         ctl = Controller4Text(model=mdl, base_epoch=20)
         # ctl.controller(text_seqs, vocab, train_epoch=20)
         ctl.controller(text_seqs, vocab, inference=True)
         ctl.sess.close()
+    '''
     pass
 
 
