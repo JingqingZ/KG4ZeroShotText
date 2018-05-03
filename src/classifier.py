@@ -8,9 +8,13 @@ import csv
 from class_embeddings import *
 
 # --------------------- Global Variables ----------------------
+dataset_name = 'arxiv'
+knowledge_graph = 'ConceptNet'
+n_fold = 4
+v_c_dim_of = ['ConceptNet': 300, 'DBpedia': 100]
 batch_size = 50
-v_t_dim = 300
-v_c_dim = 300
+v_t_dim = 512
+v_c_dim = v_c_dim_of[knowledge_graph] # ConceptNet = 300, DBpedia = 100
 lr = 0.0001 # Learning rate for Adam optimizer
 n_epoch = 500
 
@@ -40,6 +44,11 @@ def load_model_parameter(filename, path = ''):
 		op_assign = M.assign(c[0])
 		sess.run(op_assign)
 
+def reset_model_parameter():
+	with g.as_default() as graph:
+		c = tf.random_uniform([v_t_dim, v_c_dim], dtype=tf.float32)
+		op_assign = M.assign(c)
+		sess.run(op_assign)
 # --------------------- Training ------------------------------
 def train_model(V_T_train, V_C_train, Y_train, dataset_name):
 	with g.as_default() as graph:
@@ -148,7 +157,7 @@ def load_dataset(dataset_name, knowledge_graph):
 			V_C_all = np.array([get_vector_of_class(c, '', 'ConceptNet', corpus = class_labels)[1] for c in class_labels]) 
 		else:
 			assert False, "Unsupported knowledge_graph"
-		return V_T_train, Y_train_all, V_T_test, Y_test_all, V_C_all, classCodes 
+		return V_T_train, Y_train_all, V_T_test, Y_test_all, V_C_all, classList 
 
 	elif dataset_name == 'wiki':
 		train_data, header = read_CSV_rows('../data/wiki/train-wiki.csv', have_header = True)
@@ -168,13 +177,34 @@ def load_dataset(dataset_name, knowledge_graph):
 			V_C_all = np.array([get_vector_of_class(c, '', 'ConceptNet', corpus = class_labels)[1] for c in class_labels]) 
 		else:
 			assert False, "Unsupported knowledge_graph"
-		return V_T_train, Y_train_all, V_T_test, Y_test_all, V_C_all, classCodes 
+		return V_T_train, Y_train_all, V_T_test, Y_test_all, V_C_all, classList  
 
 	else:
 		assert False, "Unsupported dataset_name"
 
-def cross_class_validation():
-	pass
+def cross_class_validation(V_T_train, Y_train_all, V_T_test, Y_test_all, V_C_all, classList, dataset_name, n_fold = 4):
+	tempClasses = [(row['ClassCode'], row['Count']) for row in classList] 
+	sortedClasses = [pair[0] for pair in sorted(tempClasses, reverse = True, key = lambda x: x[1])] # Sort class codes by counts
+	rank = dict()
+	for row in classList:
+		rank[row['ClassCode']] = sortedClasses.index(row['ClassCode'])
+	
+	stats = []
+	for fold in range(n_fold):
+		reset_model_parameter()
+		train_this_fold = []
+		for i in range(len(classList)):
+			if rank[classList[i]['ClassCode']] % (2*n_fold) not in [fold, 2*n_fold-fold-1]:
+				train_this_fold.append(i)
+		Y_train = Y_train_all[:, tuple(train_this_fold)]
+		V_C_train = V_C_all[tuple(train_this_fold), :]
+		train_model(V_T_train, V_C_train, Y_train, dataset_name + str(fold))	
+		stats.append(test_model(V_T_test, V_C_all, Y_test_all, dataset_name + str(fold))) # generalised zero-shot
+	averageStats = dict([(key, np.mean(np.array([s[key] for s in stats]))) for key in stats[0]])
+	print('------------Testing results------------')
+	for fold in range(n_fold):
+		print('Fold', fold, stats[fold])
+	print('Average results:', averageStats)
 
 # --------------------- Helper functions ----------------------
 def get_pseudo_data(num_instance = 1000, num_class = 10, with_answer = True):
@@ -214,4 +244,6 @@ if __name__ == "__main__":
 	# V_T_test, V_C_test, Y_test = get_pseudo_data()
 	# test_model(V_T_test, V_C_test, Y_test, 'pseudo') # Test with testing data
 	# load_dataset('arxiv')
+	V_T_train, Y_train_all, V_T_test, Y_test_all, V_C_all, classList = load_dataset(dataset_name, knowledge_graph)
+	cross_class_validation(V_T_train, Y_train_all, V_T_test, Y_test_all, V_C_all, classList, dataset_name, n_fold = n_fold)
 	pass
