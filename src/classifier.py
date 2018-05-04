@@ -301,30 +301,20 @@ def random_guess(V_T_train, Y_train_all, V_T_test, Y_test_all, V_C_all, classLis
 
 def print_stats(stats, statseen, statunseen, averageStats, averageSeenStats, averageUnseenStats, n_fold):
 	print('------------Testing results------------')
+	text_out = ['seen + unseen classes', 'only seen classes', 'only unseen classes']
 	for fold in range(n_fold):
-		print('Fold', fold, 'seen + unseen classes')
-		for key in stats[fold]:
-			print(key, stats[fold][key])
-		print('')
-		print('Fold', fold, 'only seen classes')
-		for key in statseen[fold]:
-			print(key, statseen[fold][key])
-		print('')
-		print('Fold', fold, 'only unseen classes')
-		for key in statunseen[fold]:
-			print(key, statunseen[fold][key])
+		for i, s in enumerate([stats, statseen, statunseen]):
+			print('Fold', fold, text_out[i])
+			for key in s[fold]:
+				print(key, s[fold][key])
+			print('')
 		print('---------------------------')
-	print('Average seen + unseen classes results:')
-	for key in averageStats:
-		print(key, averageStats[key])
-	print('')
-	print('Average seen classes results:')
-	for key in averageSeenStats:
-		print(key, averageSeenStats[key])
-	print('')
-	print('Average unseen classes results:')
-	for key in averageUnseenStats:
-		print(key, averageUnseenStats[key])
+
+	for i, avs in enumerate([averageStats, averageSeenStats, averageUnseenStats]):
+		print('Average', text_out[i],'results:')
+		for key in avs:
+			print(key, avs[key])
+		print('')
 
 # --------------------- Helper functions ----------------------
 def get_pseudo_data(num_instance = 1000, num_class = 10, with_answer = True):
