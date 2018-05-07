@@ -170,7 +170,10 @@ if __name__ == "__main__":
 	print('--Done ConceptNet--')
 	pass
 
-
+	# V_C_all = np.load('../data/dbpedia/V_C_dbpedia_DBpedia.npz')['arr_0']
+	# print(V_C_all.shape)	
+	# V_C_all = np.load('../data/dbpedia/V_C_dbpedia_ConceptNet.npz')['arr_0']
+	# print(V_C_all.shape)	
 	# print(get_vector_of_class("Functional Analysis", "", "DBpedia"))
 	# print(get_vector_of_class("Functional Analysis", "", "ConceptNet"))
 	# print(get_vector_of_class("Pricing of Securities", "", "DBpedia"))
