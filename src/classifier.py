@@ -8,9 +8,10 @@ import csv
 from class_embeddings import *
 
 # --------------------- Global Variables ----------------------
-dataset_name = 'arxiv'
+dataset_name = 'dbpedia'
 knowledge_graph = 'DBpedia'
 training_method = 'devise'
+single_label = True
 beta = 0.00001 # l2-regularisation factor
 n_fold = 4
 v_c_dim_of = {'ConceptNet': 300, 'DBpedia': 100}
@@ -30,6 +31,7 @@ with g.as_default() as graph:
 	h = tf.matmul(tf.matmul(v_t, M) , tf.transpose(v_c))
 	prob_sigmoid = tf.sigmoid(h)
 	predicted_answer = tf.round(prob_sigmoid)
+	single_label_answer = tf.argmax(prob_sigmoid, axis = 1)
 
 # --------------------- Optimizer -----------------------------
 with g.as_default() as graph:
@@ -99,13 +101,21 @@ def predict(V_T_test, V_C_test):
 		h_predict = sess.run(predicted_answer, {v_t: V_T_test, v_c: V_C_test})
 		return h_predict
 
-def test_model(V_T_test, V_C_test, Y_test, dataset_name):
+def single_label_predict(V_T_test, V_C_test):
+	with g.as_default() as graph:
+		ans = sess.run(single_label_answer, {v_t: V_T_test, v_c: V_C_test})
+		return ans
+
+def test_model(V_T_test, V_C_test, Y_test, dataset_name, single_label = False):
 	h_predict = predict(V_T_test, V_C_test)
-	stats = get_statistics(h_predict, Y_test)
+	single_label_pred = None
+	if single_label:
+		single_label_pred = single_label_predict(V_T_test, V_C_test)
+	stats = get_statistics(h_predict, Y_test, single_label_pred = single_label_pred)
 	print(stats)
 	return stats
 
-def get_statistics(prediction, ground_truth):
+def get_statistics(prediction, ground_truth, single_label_pred = None):
 	assert prediction.shape == ground_truth.shape
 	num_instance = prediction.shape[0]
 	num_class = prediction.shape[1]
@@ -137,6 +147,12 @@ def get_statistics(prediction, ground_truth):
 			'macro-precision': macroP,
 			'macro-recall': macroR,
 			'macro-F1': macroF1,}
+
+	if single_label_pred is not None:
+		single_label_ground_truth = np.argmax(ground_truth, axis = 1)
+		single_label_error = np.mean(single_label_pred != single_label_ground_truth)
+		stats['single-label-error'] = single_label_error
+	
 	return stats
 
 def get_precision_recall_f1(prediction, ground_truth): # 1D data
@@ -215,12 +231,11 @@ def load_dataset(dataset_name, knowledge_graph):
 		V_T_test = np.load('../data/dbpedia/test_zhang15_dbpedia_state.npz')['state']
 		Y_train_all = np.array([[1 if i//40000 == j else 0 for j in range(14)] for i in range(560000)])
 		Y_test_all = np.array([[1 if i//5000 == j else 0 for j in range(14)] for i in range(70000)])
-		classCodes = header[5:]
 		classList = read_CSV_dict('../data/dbpedia/classLabelsDBpedia.csv') 
 		if knowledge_graph == 'DBpedia':
-			V_C_all = np.load('../data/wiki/V_C_wiki_DBpedia.npz')['arr_0']
+			V_C_all = np.load('../data/dbpedia/V_C_dbpedia_DBpedia.npz')['arr_0']
 		elif knowledge_graph == 'ConceptNet':
-			V_C_all = np.load('../data/wiki/V_C_wiki_ConceptNet.npz')['arr_0']
+			V_C_all = np.load('../data/dbpedia/V_C_dbpedia_ConceptNet.npz')['arr_0']
 		else:
 			assert False, "Unsupported knowledge_graph"
 		return V_T_train, Y_train_all, V_T_test, Y_test_all, V_C_all, classList  
@@ -247,7 +262,8 @@ def load_dataset(dataset_name, knowledge_graph):
 	else:
 		assert False, "Unsupported dataset_name"
 
-def cross_class_validation(V_T_train, Y_train_all, V_T_test, Y_test_all, V_C_all, classList, dataset_name, n_fold = 4):
+def cross_class_validation(V_T_train, Y_train_all, V_T_test, Y_test_all, V_C_all, classList, dataset_name, n_fold = 4, single_label = False):
+	# print(classList)
 	tempClasses = [(row['ClassCode'], row['Count']) for row in classList] 
 	sortedClasses = [pair[0] for pair in sorted(tempClasses, reverse = True, key = lambda x: x[1])] # Sort class codes by counts
 	rank = dict()
@@ -267,10 +283,10 @@ def cross_class_validation(V_T_train, Y_train_all, V_T_test, Y_test_all, V_C_all
 			else:
 				unseen_this_fold.append(i)
 		Y_train = Y_train_all[:, tuple(train_this_fold)]
-		# print(V_C_all)
+
 		V_C_train = V_C_all[tuple(train_this_fold), :]
 		train_model(V_T_train, V_C_train, Y_train, dataset_name + str(fold))	
-		stats.append(test_model(V_T_test, V_C_all, Y_test_all, dataset_name + str(fold))) # generalised zero-shot
+		stats.append(test_model(V_T_test, V_C_all, Y_test_all, dataset_name + str(fold), single_label)) # generalised zero-shot
 
 		V_C_seen = V_C_train
 		Y_test_seen = Y_test_all[:, tuple(train_this_fold)]
@@ -387,5 +403,5 @@ if __name__ == "__main__":
 	# print(V_C_all.keys())
 	V_T_train, Y_train_all, V_T_test, Y_test_all, V_C_all, classList = load_dataset(dataset_name, knowledge_graph)
 	# random_guess(V_T_train, Y_train_all, V_T_test, Y_test_all, V_C_all, classList, dataset_name, n_fold = n_fold)
-	cross_class_validation(V_T_train, Y_train_all, V_T_test, Y_test_all, V_C_all, classList, dataset_name, n_fold = n_fold)
+	cross_class_validation(V_T_train, Y_train_all, V_T_test, Y_test_all, V_C_all, classList, dataset_name, n_fold = n_fold, single_label = single_label)
 	pass
