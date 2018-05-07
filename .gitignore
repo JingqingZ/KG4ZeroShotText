@@ -1,5 +1,6 @@
 data/arxiv/*
 data/wiki/*
+data/dbpedia/*
 wordEmbeddings/
 .idea/
 data/wiki/*.txt
