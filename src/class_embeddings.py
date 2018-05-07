@@ -159,16 +159,18 @@ if __name__ == "__main__":
 	print('--Done Prepare--')
 	# classList = read_CSV_dict('../data/wiki/classLabelsWiki.csv') 
 
-	input_file = csv.DictReader(open('../data/wiki/classLabelsWiki.csv', encoding = "utf8"))
+	input_file = csv.DictReader(open('../data/dbpedia/classLabelsDBpedia.csv', encoding = "utf8"))
 	classList = [row for row in input_file]
 	class_labels = [row['ClassLabel'].strip() for row in classList]
 	V_C_all = np.array([get_vector_by_uri('DBpedia', row['DBpediaManual']) for row in classList])
-	np.savez('../data/wiki/V_C_wiki_DBpedia.npz', V_C_all)
+	np.savez('../data/dbpedia/V_C_dbpedia_DBpedia.npz', V_C_all)
 	print('--Done DBpedia--')
 	V_C_all = np.array([get_vector_of_class(c, '', 'ConceptNet', corpus = class_labels)[1] for c in class_labels]) 
-	np.savez('../data/wiki/V_C_wiki_ConceptNet.npz', V_C_all)
+	np.savez('../data/dbpedia/V_C_dbpedia_ConceptNet.npz', V_C_all)
 	print('--Done ConceptNet--')
 	pass
+
+
 	# print(get_vector_of_class("Functional Analysis", "", "DBpedia"))
 	# print(get_vector_of_class("Functional Analysis", "", "ConceptNet"))
 	# print(get_vector_of_class("Pricing of Securities", "", "DBpedia"))

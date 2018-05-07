@@ -8,9 +8,10 @@ import csv
 from class_embeddings import *
 
 # --------------------- Global Variables ----------------------
-dataset_name = 'wiki'
+dataset_name = 'arxiv'
 knowledge_graph = 'DBpedia'
-training_method = 'simple'
+training_method = 'devise'
+beta = 0.00001 # l2-regularisation factor
 n_fold = 4
 v_c_dim_of = {'ConceptNet': 300, 'DBpedia': 100}
 batch_size = 50
@@ -32,8 +33,21 @@ with g.as_default() as graph:
 
 # --------------------- Optimizer -----------------------------
 with g.as_default() as graph:
-	if training_method == 'simple':
+	if 'simple' in training_method:
 		loss = tf.losses.sigmoid_cross_entropy(multi_class_labels = y, logits = h)
+	elif 'devise' in training_method:
+		label = tf.to_float(y)
+		masked_sigmoid = tf.concat([tf.multiply(label, prob_sigmoid), tf.ones([tf.shape(label)[0], 1])], axis = 1)
+		avg_prob_sigmoid_label = tf.expand_dims(tf.divide(tf.reduce_sum(masked_sigmoid, 1), tf.count_nonzero(label, axis = 1, dtype=tf.float32) + 1.0), 1)
+		ones_vector = tf.ones([1, tf.shape(label)[1]])
+		ones_matrix = tf.ones_like(label)
+		inside_relu = ones_matrix - tf.matmul(avg_prob_sigmoid_label, ones_vector) + prob_sigmoid
+		inside_relu = tf.multiply(inside_relu, ones_matrix - label)
+		loss = tf.reduce_mean(tf.nn.relu(inside_relu))
+	if 'l2-regularisation' in training_method:
+		regularizer = tf.nn.l2_loss(M)
+		loss = tf.reduce_mean(loss + beta * regularizer)
+
 	train_op = tf.train.AdamOptimizer(learning_rate = lr).minimize(loss)
 	print_all_variables(train_only=True)
 	sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True, log_device_placement=False))
@@ -191,6 +205,21 @@ def load_dataset(dataset_name, knowledge_graph):
 		elif knowledge_graph == 'ConceptNet':
 			class_labels = [row['ClassLabel'].strip() for row in classList]
 			# V_C_all = np.array([get_vector_of_class(c, '', 'ConceptNet', corpus = class_labels)[1] for c in class_labels]) 
+			V_C_all = np.load('../data/wiki/V_C_wiki_ConceptNet.npz')['arr_0']
+		else:
+			assert False, "Unsupported knowledge_graph"
+		return V_T_train, Y_train_all, V_T_test, Y_test_all, V_C_all, classList  
+
+	elif dataset_name == 'dbpedia':
+		V_T_train = np.load('../data/dbpedia/train_zhang15_dbpedia_state.npz')['state']
+		V_T_test = np.load('../data/dbpedia/test_zhang15_dbpedia_state.npz')['state']
+		Y_train_all = np.array([[1 if i//40000 == j else 0 for j in range(14)] for i in range(560000)])
+		Y_test_all = np.array([[1 if i//5000 == j else 0 for j in range(14)] for i in range(70000)])
+		classCodes = header[5:]
+		classList = read_CSV_dict('../data/dbpedia/classLabelsDBpedia.csv') 
+		if knowledge_graph == 'DBpedia':
+			V_C_all = np.load('../data/wiki/V_C_wiki_DBpedia.npz')['arr_0']
+		elif knowledge_graph == 'ConceptNet':
 			V_C_all = np.load('../data/wiki/V_C_wiki_ConceptNet.npz')['arr_0']
 		else:
 			assert False, "Unsupported knowledge_graph"
@@ -357,6 +386,6 @@ if __name__ == "__main__":
 	# V_C_all = np.load('../data/wiki/V_C_wiki_ConceptNet.npz')
 	# print(V_C_all.keys())
 	V_T_train, Y_train_all, V_T_test, Y_test_all, V_C_all, classList = load_dataset(dataset_name, knowledge_graph)
-	random_guess(V_T_train, Y_train_all, V_T_test, Y_test_all, V_C_all, classList, dataset_name, n_fold = n_fold)
-	# cross_class_validation(V_T_train, Y_train_all, V_T_test, Y_test_all, V_C_all, classList, dataset_name, n_fold = n_fold)
+	# random_guess(V_T_train, Y_train_all, V_T_test, Y_test_all, V_C_all, classList, dataset_name, n_fold = n_fold)
+	cross_class_validation(V_T_train, Y_train_all, V_T_test, Y_test_all, V_C_all, classList, dataset_name, n_fold = n_fold)
 	pass
