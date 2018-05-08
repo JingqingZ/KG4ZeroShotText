@@ -10,7 +10,8 @@ from class_embeddings import *
 # --------------------- Global Variables ----------------------
 dataset_name = 'dbpedia'
 knowledge_graph = 'DBpedia'
-training_method = 'devise'
+model = 'bilinear deep'
+training_method = 'simple' # simple, devise, l2-regularisation
 single_label = True
 beta = 0.00001 # l2-regularisation factor
 n_fold = 4
@@ -27,8 +28,19 @@ with g.as_default() as graph:
 	v_t = tf.placeholder(dtype = tf.float32, shape = [None, v_t_dim], name = "text_vectors")
 	v_c = tf.placeholder(dtype = tf.float32, shape = [None, v_c_dim], name = "class_vectors")
 	y = tf.placeholder(dtype = tf.int64, shape = [None, None], name = "answer_vectors")
+	if 'deep' in model:
+		network = tl.layers.InputLayer(v_t, name='input_layer')
+		network = tl.layers.DropoutLayer(network, keep=0.8, name='drop1')
+		network = tl.layers.DenseLayer(network, n_units=800, act = tf.nn.tanh, name='tanh')
+		network = tl.layers.DropoutLayer(network, keep=0.8, name='drop2')
+		network = tl.layers.DenseLayer(network, n_units=v_t_dim, act = tl.activation.identity, name='output_v_t_layer')
+		transformed_v_t = network.outputs
+		print(network.all_params)
 	M = tf.Variable(tf.random_uniform([v_t_dim, v_c_dim], dtype=tf.float32), name = "bilinear_matrix")
-	h = tf.matmul(tf.matmul(v_t, M) , tf.transpose(v_c))
+	if 'deep' in model:
+		h = tf.matmul(tf.matmul(transformed_v_t, M) , tf.transpose(v_c))
+	else:
+		h = tf.matmul(tf.matmul(v_t, M) , tf.transpose(v_c))
 	prob_sigmoid = tf.sigmoid(h)
 	predicted_answer = tf.round(prob_sigmoid)
 	single_label_answer = tf.argmax(prob_sigmoid, axis = 1)
@@ -47,8 +59,10 @@ with g.as_default() as graph:
 		inside_relu = tf.multiply(inside_relu, ones_matrix - label)
 		loss = tf.reduce_mean(tf.nn.relu(inside_relu))
 	if 'l2-regularisation' in training_method:
-		regularizer = tf.nn.l2_loss(M)
-		loss = tf.reduce_mean(loss + beta * regularizer)
+		regularizer = beta * tf.nn.l2_loss(M)
+		if 'deep' in model:
+			regularizer = regularizer + tf.contrib.layers.l2_regularizer(beta)(network.all_params[0]) + tf.contrib.layers.l2_regularizer(beta)(network.all_params[2])
+		loss = tf.reduce_mean(loss + regularizer)
 
 	train_op = tf.train.AdamOptimizer(learning_rate = lr).minimize(loss)
 	print_all_variables(train_only=True)
@@ -78,10 +92,9 @@ def train_model(V_T_train, V_C_train, Y_train, dataset_name):
 			total_err, n_iter = 0, 0
 			for X, Y in tl.iterate.minibatches(inputs = V_T_train, targets = Y_train, batch_size = batch_size, shuffle = True):
 				step_time = time.time()
-				_, err = sess.run([train_op, loss],
-								{v_t: X,
-								v_c: V_C_train,
-								y: Y})
+				feed_dict = {v_t: X, v_c: V_C_train, y: Y}
+				feed_dict.update(network.all_drop) # Enable dropout
+				_, err = sess.run([train_op, loss], feed_dict)
 
 				if n_iter % 10 == 0:
 					print("Epoch[%d/%d] step:[%d/%d] loss:%f took:%.5fs" % (epoch, n_epoch, n_iter, n_step, err, time.time() - step_time))
@@ -94,15 +107,27 @@ def train_model(V_T_train, V_C_train, Y_train, dataset_name):
 			# Save trained parameters after running each epoch
 			param = get_variables_with_name(name='bilinear_matrix:0')
 			tl.files.save_npz(param, name='bilinear_matrix_' + dataset_name + '.npz', sess=sess)
+			if 'deep' in model:
+				tl.files.save_npz(network.all_params, name='network_' + dataset_name + '.npz', sess=sess)
 
 # --------------------- Testing -------------------------------
 def predict(V_T_test, V_C_test):
 	with g.as_default() as graph:
-		h_predict = sess.run(predicted_answer, {v_t: V_T_test, v_c: V_C_test})
+		# Disable dropout
+		dp_dict = tl.utils.dict_to_one(network.all_drop)
+		feed_dict = {v_t: V_T_test, v_c: V_C_test}
+		feed_dict.update(dp_dict)
+
+		h_predict = sess.run(predicted_answer, feed_dict)
 		return h_predict
 
 def single_label_predict(V_T_test, V_C_test):
 	with g.as_default() as graph:
+		# Disable dropout
+		dp_dict = tl.utils.dict_to_one(network.all_drop)
+		feed_dict = {v_t: V_T_test, v_c: V_C_test}
+		feed_dict.update(dp_dict)
+
 		ans = sess.run(single_label_answer, {v_t: V_T_test, v_c: V_C_test})
 		return ans
 
@@ -290,11 +315,21 @@ def cross_class_validation(V_T_train, Y_train_all, V_T_test, Y_test_all, V_C_all
 
 		V_C_seen = V_C_train
 		Y_test_seen = Y_test_all[:, tuple(train_this_fold)]
-		statseen.append(test_model(V_T_test, V_C_seen, Y_test_seen, dataset_name + str(fold)))
+		V_T_test_seen = V_T_test
+		if single_label:
+			positive_seen = [i for i in range(len(Y_test_seen)) if 1 in Y_test_seen[i]] # This row has an answer in seen classes
+			Y_test_seen = Y_test_seen[tuple(positive_seen), :]
+			V_T_test_seen = V_T_test[tuple(positive_seen), :]
+		statseen.append(test_model(V_T_test_seen, V_C_seen, Y_test_seen, dataset_name + str(fold), single_label))
 
 		V_C_unseen = V_C_all[tuple(unseen_this_fold), :]
 		Y_test_unseen = Y_test_all[:, tuple(unseen_this_fold)]
-		statunseen.append(test_model(V_T_test, V_C_unseen, Y_test_unseen, dataset_name + str(fold)))
+		V_T_test_unseen = V_T_test
+		if single_label:
+			positive_unseen = [i for i in range(len(Y_test_unseen)) if 1 in Y_test_unseen[i]] # This row has an answer in seen classes
+			Y_test_unseen = Y_test_unseen[tuple(positive_unseen), :]
+			V_T_test_unseen = V_T_test[tuple(positive_unseen), :]
+		statunseen.append(test_model(V_T_test_unseen, V_C_unseen, Y_test_unseen, dataset_name + str(fold), single_label))
 
 
 	averageStats = dict([(key, np.mean(np.array([s[key] for s in stats]))) for key in stats[0]])
