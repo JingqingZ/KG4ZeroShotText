@@ -161,7 +161,7 @@ class Controller4Text(Controller):
 
             all_loss += results[:1]
 
-            if cstep % 20 == 0 and cstep > 0:
+            if cstep % 100 == 0 and cstep > 0:
                 print(
                     "[T%s] Epoch: [%3d][%4d/%4d] time: %.4f, lr: %.8f, loss: %s" %
                     (mode[1:], epoch, cstep, train_steps, time.time() - step_time, results[-2], all_loss / (cstep + 1))
@@ -354,6 +354,8 @@ if __name__ == "__main__":
         ctl.sess.close()
 
     '''
+
+    '''
     vocab = dataloader4text.build_vocabulary_from_full_corpus(
         config.arxiv_full_data_path, config.arxiv_vocab_path, column="abstract", force_process=False
     )
@@ -385,6 +387,79 @@ if __name__ == "__main__":
 
         # text_state = ctl.controller(test_text_seqs, vocab, inference=True)
         # np.savez(config.arxiv_test_state_npz_path, state=text_state)
+
+        ctl.sess.close()
+    '''
+
+    '''
+    vocab = dataloader4text.build_vocabulary_from_full_corpus(
+        config.zhang15_dbpedia_full_data_path, config.zhang15_dbpedia_vocab_path, column="text", force_process=False
+    )
+
+    # train_text_seqs = dataloader4text.load_data_from_text_given_vocab(
+    #     config.zhang15_dbpedia_train_path, vocab, config.zhang15_dbpedia_train_processed_path,
+    #     column="text", force_process=False
+    # )
+
+    test_text_seqs = dataloader4text.load_data_from_text_given_vocab(
+        config.zhang15_dbpedia_test_path, vocab, config.zhang15_dbpedia_test_processed_path,
+        column="text", force_process=False
+    )
+
+    with tf.Graph().as_default() as graph:
+        tl.layers.clear_layers_name()
+        mdl = model4text.Model4Text(
+            model_name="text_encoding_zhang15_dbpedia",
+            start_learning_rate=0.0001,
+            decay_rate=0.8,
+            decay_steps=8e3,
+            vocab_size=15000
+        )
+        ctl = Controller4Text(model=mdl, base_epoch=20)
+        # ctl.controller(train_text_seqs, vocab, train_epoch=18)
+
+        # text_state = ctl.controller(train_text_seqs, vocab, inference=True)
+        # np.savez(config.zhang15_dbpedia_train_state_npz_path, state=text_state)
+
+        text_state = ctl.controller(test_text_seqs, vocab, inference=True)
+        np.savez(config.zhang15_dbpedia_test_state_npz_path, state=text_state)
+
+        ctl.sess.close()
+    '''
+
+    vocab = dataloader4text.build_vocabulary_from_full_corpus(
+        config.zhang15_yahoo_full_data_path, config.zhang15_yahoo_vocab_path,
+        column=["question_title", "question_content", "best_answer"], force_process=True,
+        min_word_count=200
+    )
+
+    train_text_seqs = dataloader4text.load_data_from_text_given_vocab(
+        config.zhang15_yahoo_train_path, vocab, config.zhang15_yahoo_train_processed_path,
+        column=["question_title", "question_content", "best_answer"], force_process=True
+    )
+
+    test_text_seqs = dataloader4text.load_data_from_text_given_vocab(
+        config.zhang15_yahoo_test_path, vocab, config.zhang15_yahoo_test_processed_path,
+        column=["question_title", "question_content", "best_answer"], force_process=True
+    )
+
+    with tf.Graph().as_default() as graph:
+        tl.layers.clear_layers_name()
+        mdl = model4text.Model4Text(
+            model_name="text_encoding_zhang15_yahoo",
+            start_learning_rate=0.0001,
+            decay_rate=0.8,
+            decay_steps=10e3,
+            vocab_size=22000
+        )
+        ctl = Controller4Text(model=mdl, base_epoch=-1)
+        ctl.controller(train_text_seqs, vocab, train_epoch=10)
+
+        # text_state = ctl.controller(train_text_seqs, vocab, inference=True)
+        # np.savez(config.zhang15_yahoo_train_state_npz_path, state=text_state)
+
+        # text_state = ctl.controller(test_text_seqs, vocab, inference=True)
+        # np.savez(config.zhang15_yahoo_test_state_npz_path, state=text_state)
 
         ctl.sess.close()
     pass
