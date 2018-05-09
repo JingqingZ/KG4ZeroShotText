@@ -12,3 +12,5 @@ data/zhang15/
 __pycache__/
 results/
 src/*.npz
+src_key/.ipynb_checkpoints
+src/classifier_NN.py
