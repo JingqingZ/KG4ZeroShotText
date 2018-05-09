@@ -128,7 +128,7 @@ def single_label_predict(V_T_test, V_C_test):
 		feed_dict = {v_t: V_T_test, v_c: V_C_test}
 		feed_dict.update(dp_dict)
 
-		ans = sess.run(single_label_answer, {v_t: V_T_test, v_c: V_C_test})
+		ans = sess.run(single_label_answer, feed_dict)
 		return ans
 
 def test_model(V_T_test, V_C_test, Y_test, dataset_name, single_label = False):
