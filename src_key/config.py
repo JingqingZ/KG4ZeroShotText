@@ -9,7 +9,7 @@ batch_size = 64
 
 word_embedding_dim = 512
 hidden_dim = 512
-kg_embedding_dim = 258
+kg_embedding_dim = 8
 
 # prepro_min_word_count = 5 # wiki
 prepro_min_word_count = 100 # arxiv
