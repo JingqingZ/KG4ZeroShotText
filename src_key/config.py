@@ -6,14 +6,21 @@
 vocab_size = int(30000)
 train_epoch = 100
 batch_size = 64
+max_length = 100
 
-word_embedding_dim = 512
+word_embedding_dim = 256
 hidden_dim = 512
 kg_embedding_dim = 8
 
 # prepro_min_word_count = 5 # wiki
 prepro_min_word_count = 100 # arxiv
-prepro_max_sentence_length = 100
+prepro_max_sentence_length = max_length
+
+##################################
+
+kg_vector_dir = "../wordEmbeddings/"
+
+kg_vector_data_path = kg_vector_dir + "KG_VECTORS_1.pickle"
 
 
 ##################################
@@ -69,6 +76,11 @@ zhang15_dbpedia_vocab_path = zhang15_dbpedia_dir + "vocab.txt"
 
 zhang15_dbpedia_train_state_npz_path = zhang15_dbpedia_dir + "train_zhang15_dbpedia_state.npz"
 zhang15_dbpedia_test_state_npz_path = zhang15_dbpedia_dir + "test_zhang15_dbpedia_state.npz"
+
+zhang15_dbpedia_class_label_path = zhang15_dbpedia_dir + "classLabelsDBpedia.csv"
+
+zhang15_dbpedia_kg_vector_train_processed_path = zhang15_dbpedia_dir + "kg_vector_train_processed.pkl"
+zhang15_dbpedia_kg_vector_test_processed_path = zhang15_dbpedia_dir + "kg_vector_test_processed.pkl"
 
 ##################################
 

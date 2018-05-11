@@ -239,20 +239,21 @@ class Model_KG4Text():
         self.__create_loss__()
         self.__create_training_op__()
 
-
     def __create_placeholders__(self):
-        self.encode_seqs = tf.placeholder(dtype=tf.int32, shape=[config.batch_size, None], name="encode_seqs")
-        self.kg_vector = tf.placeholder(dtype=tf.float32, shape=[config.batch_size, None, self.kg_embedding_dim], name="kg_score")
-        self.decode_seqs = tf.constant(np.zeros([config.batch_size, 1, self.word_embedding_dim + self.kg_embedding_dim]), dtype=tf.float32)
+        self.encode_seqs = tf.placeholder(dtype=tf.int32, shape=[config.batch_size, config.max_length], name="encode_seqs")
+        self.kg_vector = tf.placeholder(dtype=tf.float32, shape=[config.batch_size, config.max_length, self.kg_embedding_dim], name="kg_score")
+        self.category_logits = tf.placeholder(dtype=tf.float32, shape=[config.batch_size, 1], name="category_logits")
 
-        self.encode_seqs_inference = tf.placeholder(dtype=tf.int32, shape=[1, None], name="encode_seqs_inference")
-
+        self.encode_seqs_infer = tf.placeholder(dtype=tf.int32, shape=[1, config.max_length], name="encode_seqs_inference")
+        self.kg_vector_infer = tf.placeholder(dtype=tf.float32, shape=[1, config.max_length, self.kg_embedding_dim], name="kg_score_inference")
+        self.category_logits_infer = tf.placeholder(dtype=tf.float32, shape=[1, 1], name="category_logits_inference")
 
     def __create_model__(self):
-        self.__get_network__(self.model_name, self.encode_seqs, self.kg_vector, self.decode_seqs, reuse=False, is_train=True)
+        self.train_net = self.__get_network__(self.model_name, self.encode_seqs, self.kg_vector, reuse=False, is_train=True)
+        self.test_net = self.__get_network__(self.model_name, self.encode_seqs, self.kg_vector, reuse=True, is_train=False)
+        self.infer_net = self.__get_network__(self.model_name, self.encode_seqs_infer, self.kg_vector_infer, reuse=True, is_train=False)
 
-
-    def __get_network__(self, model_name, encode_seqs, kg_vector, decode_seqs, reuse=False, is_train=True):
+    def __get_network__(self, model_name, encode_seqs, kg_vector, reuse=False, is_train=True):
         with tf.variable_scope(model_name, reuse=reuse):
 
             net_word_embed = EmbeddingInputlayer(
@@ -261,6 +262,7 @@ class Model_KG4Text():
                 embedding_size = self.word_embedding_dim,
                 name='seq_embedding'
             )
+
             net_kg = InputLayer(
                 inputs=kg_vector,
                 name='in_kg'
@@ -271,42 +273,85 @@ class Model_KG4Text():
                 name='concat_kg_word'
             )
 
-            net_encoder = DynamicRNNLayer(
+            net_encoder = RNNLayer(
                 net_in,
                 cell_fn = tf.contrib.rnn.BasicLSTMCell,
                 n_hidden = self.hidden_dim,
-                # dropout = (0.7 if is_train else None),
-                sequence_length = tl.layers.retrieve_seq_length_op2(encode_seqs),
+                n_steps = config.max_length,
                 return_last = False,
                 return_seq_2d = False,
                 name = 'net_encoder'
             )
 
-            net_decode_in = InputLayer(
-                inputs=decode_seqs,
-                name='net_decode_in'
-            )
-
-            net_decoder = DynamicAttentionRNNDecodeLayer(
-                net_decode_in,
+            net_attention = LambdaLayer(
                 net_encoder,
-                cell_fn = tf.contrib.rnn.BasicLSTMCell,
-                attention_fn=tf.contrib.seq2seq.LuongAttention,
-                n_hidden = self.hidden_dim,
-                # dropout = (0.7 if is_train else None),
-                # initial_state=net_encoder.final_state,
-                sequence_length = tl.layers.retrieve_seq_length_op2(encode_seqs),
-                return_seq_2d = False,
-                name = 'net_decoder_attention'
+                fn=self.__attention__,
+                name="luong_attention"
             )
-            print(net_decoder.outputs)
 
-        return
+            net_out = DenseLayer(
+                net_attention,
+                n_units=1,
+                act=tf.sigmoid,
+                name='dense'
+            )
 
+        return net_out
 
+    def __attention__(self, inputs):
+        # print(inputs.get_shape())
+
+        W_a = tf.get_variable(
+            name="attention_w_a",
+            shape=(inputs.get_shape()[-1], inputs.get_shape()[-1]),
+            initializer=tf.random_uniform_initializer(-0.1, 0.1),
+            trainable=True
+        )
+
+        hs = tf.unstack(inputs[:, :-1, :], axis=0)
+        ct = tf.unstack(inputs[:, -1:, :], axis=0)
+
+        align = list()
+
+        for i in range(inputs.get_shape()[0]):
+            align.append(tf.matmul(
+                a=tf.matmul(
+                    a=hs[i],
+                    b=W_a
+                ),
+                b=tf.transpose(ct[i])
+            ))
+
+        align = tf.stack(align, axis=0)
+        align = tf.squeeze(align, axis=[-1])
+
+        align = tf.nn.softmax(align)
+        self.attention_softmax = align
+        align = tf.expand_dims(align, axis=-1)
+
+        h_star = tf.matmul(
+            a=inputs[:, :-1, :],
+            b=align,
+            transpose_a=True
+        )
+
+        h_star = tf.squeeze(h_star, axis=[-1])
+
+        return h_star
 
     def __create_loss__(self):
-        pass
+        self.train_loss = tl.cost.binary_cross_entropy(
+            output=self.train_net.outputs,
+            target=self.category_logits,
+        )
+        self.test_loss = tl.cost.binary_cross_entropy(
+            output=self.test_net.outputs,
+            target=self.category_logits,
+        )
+        self.infer_loss = tl.cost.binary_cross_entropy(
+            output=self.infer_net.outputs,
+            target=self.category_logits_infer,
+        )
 
     def __create_training_op__(self):
         self.global_step = tf.placeholder(
@@ -322,9 +367,8 @@ class Model_KG4Text():
             staircase=True,
             name="learning_rate"
         )
-        # self.optim = tf.train.AdamOptimizer(self.learning_rate, beta1=0.5) \
-        #     .minimize(self.train_loss, var_list=self.train_net.all_params)
-
+        self.optim = tf.train.AdamOptimizer(self.learning_rate, beta1=0.5) \
+            .minimize(self.train_loss, var_list=self.train_net.all_params)
 
 if __name__ == "__main__":
     model = Model_KG4Text(
