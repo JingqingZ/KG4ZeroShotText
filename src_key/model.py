@@ -318,11 +318,11 @@ class Model_KG4Text():
                 name="attention_h_star"
             )
 
-            net_encoder.outputs = net_encoder.outputs[:, -1, :]
+            # net_encoder.outputs = net_encoder.outputs[:, -1, :]
 
             net_out = DenseLayer(
-                # net_attention,
-                net_encoder,
+                net_attention,
+                # net_encoder,
                 n_units=1,
                 act=tf.sigmoid,
                 name='dense'
