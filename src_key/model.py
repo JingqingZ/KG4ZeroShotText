@@ -243,15 +243,17 @@ class Model_KG4Text():
         self.encode_seqs = tf.placeholder(dtype=tf.int32, shape=[config.batch_size, config.max_length], name="encode_seqs")
         self.kg_vector = tf.placeholder(dtype=tf.float32, shape=[config.batch_size, config.max_length, self.kg_embedding_dim], name="kg_score")
         self.category_logits = tf.placeholder(dtype=tf.float32, shape=[config.batch_size, 1], name="category_logits")
+        self.class_id_seqs = tf.placeholder(dtype=tf.int32, shape=[config.batch_size, 1], name="class_id_seqs")
 
         self.encode_seqs_infer = tf.placeholder(dtype=tf.int32, shape=[1, config.max_length], name="encode_seqs_inference")
         self.kg_vector_infer = tf.placeholder(dtype=tf.float32, shape=[1, config.max_length, self.kg_embedding_dim], name="kg_score_inference")
         self.category_logits_infer = tf.placeholder(dtype=tf.float32, shape=[1, 1], name="category_logits_inference")
+        self.class_id_seqs_infer = tf.placeholder(dtype=tf.int32, shape=[1, 1], name="class_id_seqs")
 
     def __create_model__(self):
-        self.train_net = self.__get_network__(self.model_name, self.encode_seqs, self.kg_vector, reuse=False, is_train=True)
-        self.test_net = self.__get_network__(self.model_name, self.encode_seqs, self.kg_vector, reuse=True, is_train=False)
-        self.infer_net = self.__get_network__(self.model_name, self.encode_seqs_infer, self.kg_vector_infer, reuse=True, is_train=False)
+        self.train_net, self.train_align = self.__get_network__(self.model_name, self.encode_seqs, self.kg_vector, reuse=False, is_train=True)
+        self.test_net, self.test_align = self.__get_network__(self.model_name, self.encode_seqs, self.kg_vector, reuse=True, is_train=False)
+        self.infer_net, self.infer_align = self.__get_network__(self.model_name, self.encode_seqs_infer, self.kg_vector_infer, reuse=True, is_train=False)
 
     def __get_network__(self, model_name, encode_seqs, kg_vector, reuse=False, is_train=True):
         with tf.variable_scope(model_name, reuse=reuse):
@@ -267,6 +269,26 @@ class Model_KG4Text():
                 inputs=kg_vector,
                 name='in_kg'
             )
+
+            net_kg = ReshapeLayer(
+                net_kg,
+                shape=(-1, config.kg_embedding_dim),
+                name="reshape_kg_1"
+            )
+
+            net_kg = DenseLayer(
+                net_kg,
+                n_units=64,
+                act=tf.nn.relu,
+                name='dense_kg'
+            )
+
+            net_kg = ReshapeLayer(
+                net_kg,
+                shape=(-1, config.max_length, 64),
+                name="reshape_kg_2"
+            )
+
             net_in = ConcatLayer(
                 [net_word_embed, net_kg],
                 concat_dim=-1,
@@ -283,30 +305,40 @@ class Model_KG4Text():
                 name = 'net_encoder'
             )
 
-            net_attention = LambdaLayer(
+            net_align = LambdaLayer(
                 net_encoder,
-                fn=self.__attention__,
-                name="luong_attention"
+                fn=self.__attention_align__,
+                name="attention_align"
             )
 
+            net_attention = LambdaLayer(
+                net_encoder,
+                fn=self.__attention_h_star__,
+                fn_args={'align': net_align.outputs},
+                name="attention_h_star"
+            )
+
+            net_encoder.outputs = net_encoder.outputs[:, -1, :]
+
             net_out = DenseLayer(
-                net_attention,
+                # net_attention,
+                net_encoder,
                 n_units=1,
                 act=tf.sigmoid,
                 name='dense'
             )
 
-        return net_out
+        return net_out, net_align
 
-    def __attention__(self, inputs):
+    def __attention_align__(self, inputs):
         # print(inputs.get_shape())
 
-        W_a = tf.get_variable(
-            name="attention_w_a",
-            shape=(inputs.get_shape()[-1], inputs.get_shape()[-1]),
-            initializer=tf.random_uniform_initializer(-0.1, 0.1),
-            trainable=True
-        )
+        # W_a = tf.get_variable(
+        #     name="attention_w_a",
+        #     shape=(inputs.get_shape()[-1], inputs.get_shape()[-1]),
+        #     initializer=tf.random_uniform_initializer(-0.1, 0.1),
+        #     trainable=True
+        # )
 
         hs = tf.unstack(inputs[:, :-1, :], axis=0)
         ct = tf.unstack(inputs[:, -1:, :], axis=0)
@@ -314,12 +346,17 @@ class Model_KG4Text():
         align = list()
 
         for i in range(inputs.get_shape()[0]):
+            # align.append(tf.matmul(
+            #     a=tf.matmul(
+            #         a=hs[i],
+            #         b=W_a
+            #    ),
+            #     b=tf.transpose(ct[i])
+            # ))
             align.append(tf.matmul(
-                a=tf.matmul(
-                    a=hs[i],
-                    b=W_a
-                ),
-                b=tf.transpose(ct[i])
+                a=hs[i],
+                b=ct[i],
+                transpose_b=True
             ))
 
         align = tf.stack(align, axis=0)
@@ -329,6 +366,10 @@ class Model_KG4Text():
         self.attention_softmax = align
         align = tf.expand_dims(align, axis=-1)
 
+        return align
+
+    def __attention_h_star__(self, inputs, align):
+
         h_star = tf.matmul(
             a=inputs[:, :-1, :],
             b=align,
@@ -337,13 +378,20 @@ class Model_KG4Text():
 
         h_star = tf.squeeze(h_star, axis=[-1])
 
+        # ct = tf.squeeze(ct, axis=[1])
+        # h_star = tf.concat([ct, h_star], axis=-1)
+
         return h_star
+
 
     def __create_loss__(self):
         self.train_loss = tl.cost.binary_cross_entropy(
             output=self.train_net.outputs,
             target=self.category_logits,
         )
+
+        # self.train_align_loss =
+
         self.test_loss = tl.cost.binary_cross_entropy(
             output=self.test_net.outputs,
             target=self.category_logits,
@@ -373,7 +421,7 @@ class Model_KG4Text():
 if __name__ == "__main__":
     model = Model_KG4Text(
         model_name="text_encoding",
-        start_learning_rate=0.001,
+        start_learning_rate=0.0004,
         decay_rate=0.8,
         decay_steps=1000
     )

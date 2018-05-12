@@ -5,12 +5,14 @@
 
 vocab_size = int(30000)
 train_epoch = 100
-batch_size = 64
-max_length = 100
+batch_size = 32
+max_length = 50
 
-word_embedding_dim = 256
-hidden_dim = 512
-kg_embedding_dim = 8
+word_embedding_dim = 128
+hidden_dim = 256
+
+kg_embedding_dim = 57 # kg_vector hop=2
+# kg_embedding_dim = 8 # kg_vector hop=1
 
 # prepro_min_word_count = 5 # wiki
 prepro_min_word_count = 100 # arxiv
@@ -20,7 +22,8 @@ prepro_max_sentence_length = max_length
 
 kg_vector_dir = "../wordEmbeddings/"
 
-kg_vector_data_path = kg_vector_dir + "KG_VECTORS_1.pickle"
+# kg_vector_data_path = kg_vector_dir + "KG_VECTORS_1.pickle"
+kg_vector_data_path = kg_vector_dir + "KG_VECTORS_2.pickle"
 
 
 ##################################

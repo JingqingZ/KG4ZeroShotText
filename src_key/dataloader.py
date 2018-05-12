@@ -173,26 +173,6 @@ def get_kg_vector(kg_vector_dict, class_label, word):
     else:
         return np.zeros(config.kg_embedding_dim)
 
-def get_kg_vector_sentence(encode_text_seqs_mini, true_class_mini, class_dict, category_logits, kg_vector_dict, vocab):
-    kg_vector_seqs_mini = list()
-
-    for idx, logit in enumerate(category_logits):
-
-        if logit == 1:
-            class_id = true_class_mini[idx]
-        else:
-            while True:
-                false_class_id = random.choice(list(class_dict))
-                if false_class_id != true_class_mini[idx]:
-                    break
-            class_id = false_class_id
-
-        kg_vector = np.zeros([len(encode_text_seqs_mini[idx]), config.kg_embedding_dim])
-        for widx, word_id in enumerate(encode_text_seqs_mini[idx]):
-            kg_vector[widx, :] = get_kg_vector(kg_vector_dict, class_dict[class_id], vocab.id_to_word(word_id))
-        kg_vector_seqs_mini.append(kg_vector)
-
-    return kg_vector_seqs_mini
 
 def load_kg_vector(filename):
     with open(filename, 'rb') as f:
