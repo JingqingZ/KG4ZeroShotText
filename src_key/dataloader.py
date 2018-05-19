@@ -41,20 +41,12 @@ def sentence_word_to_id(textlist, vocab):
         textlist[idx] = [vocab.word_to_id(word) for word in text]
     return textlist
 
-def prepro_encode_kg_vector(kg_vector_list):
-    for idx, kg_vector in enumerate(kg_vector_list):
-        new_kg_vector = np.zeros([config.max_length, config.kg_embedding_dim])
-        new_kg_vector[:kg_vector.shape[0] - 2, :] = kg_vector[1:-1]
-        kg_vector_list[idx] = new_kg_vector
-    return np.array(kg_vector_list)
-
-def prepro_encode(textlist, vocab):
-    for idx, text in enumerate(textlist):
-        textlist[idx] = text[1:-1] + [vocab.pad_id]
-    textlist = tl.prepro.pad_sequences(textlist, maxlen=config.prepro_max_sentence_length, dtype='int64', padding='post', truncating='post', value=vocab.pad_id)
-    for idx, text in enumerate(textlist):
-        textlist[idx] = text[:-1] + [vocab.pad_id]
-    return np.array(textlist)
+# def prepro_encode_kg_vector(kg_vector_list):
+#     for idx, kg_vector in enumerate(kg_vector_list):
+#         new_kg_vector = np.zeros([config.max_length, config.kg_embedding_dim])
+#         new_kg_vector[:kg_vector.shape[0] - 2, :] = kg_vector[1:-1]
+#         kg_vector_list[idx] = new_kg_vector
+#     return np.array(kg_vector_list)
 
 def get_text_list(df, column):
     if type(column) == str:
@@ -66,7 +58,6 @@ def get_text_list(df, column):
     else:
         raise Exception("column should be either a string or a list of string")
     return full_text_list
-
 
 def load_data(filename, vocab_file, processed_file, column, min_word_count=config.prepro_min_word_count, force_process=False):
     print("Loading data ...")
@@ -98,7 +89,6 @@ def load_data(filename, vocab_file, processed_file, column, min_word_count=confi
 
     print("Data loaded: num of seqs %s" % len(full_text_list))
     return full_text_list, vocab
-
 
 def build_vocabulary_from_full_corpus(filename, vocab_file, column, min_word_count=config.prepro_min_word_count, force_process=False):
     if not force_process and os.path.exists(vocab_file):
@@ -165,18 +155,32 @@ def get_kg_vector(kg_vector_dict, class_label, word):
 
     assert class_label in kg_vector_dict
 
-    if not word.startswith(prefix):
-        word = prefix + word.lower()
-
     if word in kg_vector_dict[class_label]:
         return kg_vector_dict[class_label][word]
     else:
+        if not word.startswith(prefix):
+            word = prefix + word.lower()
+        if word in kg_vector_dict[class_label]:
+            return kg_vector_dict[class_label][word]
         return np.zeros(config.kg_embedding_dim)
 
+def load_kg_vector(filedir, fileprefix, class_dict):
+    print("Loading KG_VECTOR ...")
+    kg_vector_dict = dict()
+    for class_id in class_dict:
 
-def load_kg_vector(filename):
-    with open(filename, 'rb') as f:
-        kg_vector_dict = pickle.load(f)
+        with open("%s%s%s.pickle" % (filedir, fileprefix, class_dict[class_id]), 'rb') as f:
+            class_kg_dict = pickle.load(f)
+
+            prefix = "/c/en/"
+            class_name = class_dict[class_id]
+            if not class_name.startswith(prefix):
+                class_name = prefix + class_name
+
+            assert class_name not in kg_vector_dict
+            kg_vector_dict[class_name] = class_kg_dict
+
+    print(kg_vector_dict.keys())
     return kg_vector_dict
 
 def load_kg_vector_given_text_seqs(text_seqs, vocab, class_dict, kg_vector_dict, processed_file, force_process=False):
@@ -203,6 +207,36 @@ def load_kg_vector_given_text_seqs(text_seqs, vocab, class_dict, kg_vector_dict,
             pickle.dump(kg_vector_seqs, f)
     return kg_vector_seqs
 
+def load_glove_word_vector(filename, npzfilename, vocab, force_process=False):
+    print("Glove loading ... ")
+
+    if not force_process and os.path.exists(npzfilename):
+        print("Glove found in local file")
+        glove_mat = np.load(npzfilename)["matrix"]
+        print("Glove loaded: mat %s, vocab size %d" % (glove_mat.shape, np.count_nonzero(np.sum(glove_mat, axis=1))))
+
+    else:
+        glove_mat = np.zeros((vocab.unk_id + 1, config.word_embedding_dim))
+
+        num = 0
+        with progressbar.ProgressBar(max_value=400000) as bar:
+            with open(filename, 'r') as f:
+                for idx, line in enumerate(f):
+                    content = line.replace("\n", "").split(" ")
+
+                    word = content[0]
+                    vect = np.array(content[1:]).astype(np.float32)
+
+                    word_id = vocab.word_to_id(word)
+                    if word_id != vocab.unk_id:
+                        glove_mat[word_id, : ] = vect
+                        num += 1
+                    bar.update(idx + 1)
+            np.savez(npzfilename, matrix=glove_mat)
+        print("Glove loaded: mat %s, vocab size %d" % (glove_mat.shape, num))
+
+    return glove_mat
+
 if __name__ == "__main__":
     # text_seqs, vocab = load_data(config.wiki_train_data_path, config.wiki_vocab_path, config.wiki_train_processed_path, column="text", force_process=True)
     # text_seqs, vocab = load_data(config.arxiv_train_data_path, config.arxiv_vocab_path, config.arxiv_train_processed_path, column="abstract", force_process=True)
@@ -211,6 +245,8 @@ if __name__ == "__main__":
     # vocab = build_vocabulary_from_full_corpus(config.arxiv_full_data_path, config.arxiv_vocab_path, column="abstract", force_process=True)
     # vocab = build_vocabulary_from_full_corpus(config.zhang15_dbpedia_full_data_path, config.zhang15_dbpedia_vocab_path, column="text", force_process=False)
     # vocab = build_vocabulary_from_full_corpus(config.zhang15_yahoo_full_data_path, config.zhang15_yahoo_vocab_path, column=["question_title", "question_content", "best_answer"], force_process=False)
+    # vocab = build_vocabulary_from_full_corpus(config.chen14_full_data_path, config.chen14_vocab_path, column="text", min_word_count=1, force_process=False)
+    vocab = build_vocabulary_from_full_corpus(config.news20_full_data_path, config.news20_vocab_path, column="text", min_word_count=1, force_process=False)
 
     # text_seqs = load_data_from_text_given_vocab(
     #     config.zhang15_dbpedia_test_path, vocab, config.zhang15_dbpedia_test_processed_path,
@@ -231,18 +267,53 @@ if __name__ == "__main__":
     # print(text_seqs[0])
 
     # load_kg_vector(config.kg_vector_data_path)
-    data_class_list = load_data_class(
-        filename=config.zhang15_dbpedia_train_path,
-        column="class",
+    # data_class_list = load_data_class(
+    #     filename=config.zhang15_dbpedia_train_path,
+    #     column="class",
+    # )
+    # print(data_class_list)
+
+    # class_dict = load_class_dict(
+    #     class_file=config.zhang15_dbpedia_class_label_path,
+    #     class_code_column="ClassCode",
+    #     class_name_column="ConceptNet"
+    # )
+    # print(class_dict)
+
+    # load_glove_word_vector(config.word_embed_file_path, vocab)
+
+    '''
+    vocab = build_vocabulary_from_full_corpus(
+        config.chen14_full_data_path, config.chen14_vocab_path, column="text", force_process=False
     )
-    print(data_class_list)
+
+    glove_mat = load_glove_word_vector(
+        config.word_embed_file_path, config.chen14_word_embed_matrix_path, vocab
+    )
 
     class_dict = load_class_dict(
-        class_file=config.zhang15_dbpedia_class_label_path,
+        class_file=config.chen14_class_label_path,
         class_code_column="ClassCode",
         class_name_column="ConceptNet"
     )
-    print(class_dict)
+
+    for class_id in class_dict:
+        class_label = class_dict[class_id]
+        class_label_word_id = vocab.word_to_id(class_label)
+        print(class_label, class_label_word_id, np.sum(glove_mat[class_label_word_id]))
+    '''
+
+    '''
+    wordlist = ["operating-system", "middle-east", "operating_system", "operating", "os"]
+    filename = config.word_embed_file_path
+    with open(filename, 'r') as f:
+        for line in f:
+            content = line.replace("\n", "").split(" ")
+            word = content[0]
+            for w in wordlist:
+                if w == word:
+                    print(w)
+    '''
 
     pass
 

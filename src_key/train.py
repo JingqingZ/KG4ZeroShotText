@@ -1,4 +1,5 @@
 import os
+import sys
 import random
 import matplotlib
 
@@ -6,6 +7,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import time
 import math
+import sklearn
 import numpy as np
 import pandas as pd
 import tensorflow as tf
@@ -13,8 +15,11 @@ import tensorlayer as tl
 from datetime import datetime, timedelta
 from random import randint
 import progressbar
+import nltk
 
+import log
 import utils
+import error
 import config
 import model
 import dataloader
@@ -96,36 +101,65 @@ class Controller_KG4Text(Controller):
             vocab,
             class_dict,
             kg_vector_dict,
+            word_embed_mat,
             num_fold=4,
             current_fold=1,
-            base_epoch=-1
+            random_unseen=True,
+            random_percentage=0.25,
+            base_epoch=-1,
+            lemma=False
     ):
+
         Controller.__init__(self, model=model)
+
+        logging = log.Log(sys.stdout, self.log_save_dir + "log-%s" % utils.now2string())
+        sys.stdout = logging
+
         self.base_epoch = base_epoch
         self.vocab = vocab
         self.class_dict = class_dict
         self.kg_vector_dict = kg_vector_dict
+        self.word_embed_mat = word_embed_mat
+        self.lemma = lemma
+
+        if self.lemma:
+            from nltk.stem import WordNetLemmatizer
+            self.lemmatizer = WordNetLemmatizer()
+
         self.num_fold = num_fold
         self.current_fold = current_fold
 
         num_class = len(class_dict.keys())
-        num_of_class_in_each_fold = list()
-        remain = num_class
+        if random_unseen:
+            num_unseen_class = int(num_class * random_percentage)
+            class_id_list = list(class_dict.keys())
+            random.shuffle(class_id_list)
+            self.unseen_class = class_id_list[:num_unseen_class]
+            print("Random selected unseen class %s" % (self.unseen_class))
 
+        else:
+            num_of_class_in_each_fold = list()
+            remain = num_class
 
-        self.unseen_class =[0, 0]
+            unseen_class_tuple =[0, 0]
 
-        for i in range(num_fold):
-            this_fold = math.ceil(remain / (num_fold - i))
-            remain -= this_fold
-            num_of_class_in_each_fold.append(this_fold)
+            assert current_fold > 0
+            assert current_fold <= num_fold
+            for i in range(num_fold):
+                this_fold = math.ceil(remain / (num_fold - i))
+                remain -= this_fold
+                num_of_class_in_each_fold.append(this_fold)
 
-            if i == self.current_fold - 1:
-                self.unseen_class[1] = num_class - remain
-                self.unseen_class[0] = num_class - remain - this_fold + 1
+                if i == self.current_fold - 1:
+                    unseen_class_tuple[1] = num_class - remain
+                    unseen_class_tuple[0] = num_class - remain - this_fold + 1
+
+            self.unseen_class = [range(unseen_class_tuple[0], unseen_class_tuple[1] + 1)]
+            print("%d/%d fold class %s" % (current_fold, num_fold, self.unseen_class))
+
 
     def check_seen(self, class_id):
-        return class_id < self.unseen_class[0] or class_id > self.unseen_class[1]
+        return not class_id in self.unseen_class
 
     def get_kg_vector_given_class(self, encode_text_seqs, class_id_list):
         assert encode_text_seqs.shape[0] == class_id_list.shape[0]
@@ -134,16 +168,22 @@ class Controller_KG4Text(Controller):
 
         for idx, class_id in enumerate(class_id_list):
 
-            kg_vector = np.zeros([config.max_length, config.kg_embedding_dim])
+            kg_vector = np.zeros([self.model.max_length, config.kg_embedding_dim])
 
             for widx, word_id in enumerate(encode_text_seqs[idx]):
-                kg_vector[widx, :] = dataloader.get_kg_vector(self.kg_vector_dict, self.class_dict[class_id], self.vocab.id_to_word(word_id))
+                word = self.vocab.id_to_word(word_id)
+                if self.lemma:
+                    new_word = nltk.pos_tag([word])  # a list of words à a list of words with part of speech
+                    new_word = [self.lemmatizer.lemmatize(t[0], config.pos_dict[t[1]]) for t in new_word if t[1] in config.pos_dict]
+                    if len(new_word) > 0:
+                        word = new_word[0]
+                kg_vector[widx, :] = dataloader.get_kg_vector(self.kg_vector_dict, self.class_dict[class_id], word)
 
             kg_vector_list.append(kg_vector)
 
         kg_vector_list = np.array(kg_vector_list)
 
-        assert kg_vector_list.shape == (config.batch_size, config.max_length, config.kg_embedding_dim)
+        assert kg_vector_list.shape == (config.batch_size, self.model.max_length, config.kg_embedding_dim)
 
         return kg_vector_list
 
@@ -222,7 +262,37 @@ class Controller_KG4Text(Controller):
         assert pred_k.shape == (pred_mat.shape[0], k)
         return pred_k
 
-    def __train__(self, epoch, text_seqs, class_list):
+    def get_class_label_embed(self, class_id_list):
+        class_embed = np.zeros((len(class_id_list), self.model.max_length, self.model.word_embedding_dim))
+
+        for idx, class_id in enumerate(class_id_list):
+            class_embed[idx, :, :] = np.repeat([self.word_embed_mat[self.vocab.word_to_id(self.class_dict[class_id])]], self.model.max_length, axis=0)
+
+        return class_embed
+
+    def prepro_encode(self, textlist):
+        newtextlist = list()
+        for idx, text in enumerate(textlist):
+            newtextlist.append(text[1:-1] + [self.vocab.pad_id])
+        newtextlist = tl.prepro.pad_sequences(newtextlist, maxlen=self.model.max_length, dtype='int64', padding='post', truncating='post', value=self.vocab.pad_id)
+        for idx, text in enumerate(newtextlist):
+            newtextlist[idx] = text[:-1] + [vocab.pad_id]
+
+        text_array = np.zeros((len(newtextlist), self.model.max_length, self.model.word_embedding_dim))
+        for idx, text in enumerate(newtextlist):
+            for widx, word_id in enumerate(text):
+                text_array[idx][widx] = self.word_embed_mat[word_id]
+
+        return np.array(newtextlist), text_array
+
+    def get_random_text(self, num):
+        random_text = list()
+        for i in range(num):
+            text = [randint(0, self.vocab.unk_id) for _ in range(self.model.max_length)]
+            random_text.append(text)
+        return random_text
+
+    def __train__(self, epoch, text_seqs, class_list, max_train_steps=None):
 
         assert len(text_seqs) == len(class_list)
 
@@ -230,7 +300,8 @@ class Controller_KG4Text(Controller):
 
         random.shuffle(train_order)
 
-        train_order = train_order[: 5000 * config.batch_size]
+        # TODO: uncomment to train on all data
+        # train_order = train_order[: 5000 * config.batch_size]
 
         start_time = time.time()
         step_time = time.time()
@@ -239,45 +310,77 @@ class Controller_KG4Text(Controller):
 
         train_steps = len(train_order) // config.batch_size
 
+        if max_train_steps is not None and max_train_steps < train_steps:
+            train_steps = max_train_steps
+
         for cstep in range(train_steps):
+            global_step = cstep + epoch * train_steps
 
-            text_seqs_mini = [text_seqs[idx] for idx in train_order[cstep * config.batch_size : (cstep + 1) * config.batch_size]]
+            # category_logits = [1 if randint(0, config.negative_sample) == 0 else 0 for _ in range(config.batch_size)]
+            category_logits = [1 if randint(0, 7 + int(epoch // 2)) == 0 else 0 for _ in range(config.batch_size)]
             true_class_id_mini = [class_list[idx] for idx in train_order[cstep * config.batch_size : (cstep + 1) * config.batch_size]]
-            encode_seqs_mini = dataloader.prepro_encode(text_seqs_mini.copy(), vocab)
+            text_seqs_mini = [text_seqs[idx] for idx in train_order[cstep * config.batch_size : (cstep + 1) * config.batch_size]]
 
-            for logit in range(2):
+            # random text
+            category_logits = category_logits[:-3] + [0, 0, 0]
+            true_class_id_mini = true_class_id_mini[:-3]  + [-1, -1, -1]
+            text_seqs_mini = text_seqs_mini[:-3] + self.get_random_text(3)
 
-                # category_logits = np.array([randint(0, 1) for b in range(config.batch_size)])
-                category_logits = np.array([logit] * config.batch_size)
+            encode_seqs_id_mini, encode_seqs_mat_mini = self.prepro_encode(text_seqs_mini)
 
-                class_id_mini = self.get_random_class(true_class_id_mini, category_logits)
-                kg_vector_seqs_mini = self.get_kg_vector_given_class(encode_seqs_mini, class_id_mini)
+            # print("process_1", time.time() - step_time)
+            class_id_mini = self.get_random_class(true_class_id_mini, category_logits)
+            # print("process_2", time.time() - step_time)
+            class_label_embed_mini = self.get_class_label_embed(class_id_mini)
+            # print("process_3", time.time() - step_time)
+            kg_vector_seqs_mini = self.get_kg_vector_given_class(encode_seqs_id_mini, class_id_mini)
+            # print("process_4", time.time() - step_time)
 
-                global_step = cstep + epoch * train_steps
+            # np.set_printoptions(threshold=np.nan)
+            # print("encode", encode_seqs_mat_mini[:2, :20, :10])
+            # print("class", class_label_embed_mini[:2, :10, :10])
+            # print("kg", np.sum(kg_vector_seqs_mini[:2, :20, :10], axis=-1))
+            # print("encode", encode_seqs_id_mini[:2, :10])
+            # print("encode", [[self.vocab.id_to_word(word_id) for word_id in text] for text in encode_seqs_id_mini[:2, :20]])
+            # print("class", [self.class_dict[class_id] for class_id in class_id_mini[:2]])
+            # print("class", class_id_mini[:2])
+            # print("true_class", true_class_id_mini[:2])
+            # print("cate", category_logits[:2])
 
-                results = self.sess.run([
-                    self.model.train_loss,
-                    self.model.learning_rate,
-                    self.model.optim
-                ], feed_dict={
-                    self.model.encode_seqs: encode_seqs_mini,
-                    self.model.kg_vector: kg_vector_seqs_mini,
-                    self.model.category_logits: np.expand_dims(category_logits, -1),
-                    self.model.global_step: global_step,
-                })
+            results = self.sess.run([
+                self.model.train_loss,
+                self.model.train_net.outputs,
+                # self.model.train_align.outputs,
+                self.model.learning_rate,
+                self.model.optim
+            ], feed_dict={
+                self.model.encode_seqs: encode_seqs_mat_mini,
+                self.model.class_label_seqs: class_label_embed_mini,
+                self.model.kg_vector: kg_vector_seqs_mini,
+                self.model.category_logits: np.expand_dims(np.array(category_logits), -1),
+                self.model.global_step: global_step,
+            })
+            # print("model", time.time() - step_time)
 
-                all_loss += results[:1]
+            # print("out", results[1][:2])
+            # print("align", results[2][:2, :10])
+            # print("trainloss", results[0])
+            # exit()
 
-            if cstep % 100 == 0 and cstep > 0:
+            all_loss += results[:1]
+
+            if cstep % config.cstep_print == 0 and cstep > 0:
                 print(
                     "[Train] Epoch: [%3d][%4d/%4d] time: %.4f, lr: %.8f, loss: %s" %
-                    (epoch, cstep, train_steps, time.time() - step_time, results[-2], all_loss / (cstep + 1) / 2)
+                    (epoch, cstep, train_steps, time.time() - step_time, results[-2], all_loss / (cstep + 1) )
                 )
                 step_time = time.time()
+            # print(time.time() - step_time)
+            # exit()
 
         print(
             "[Train Sum] Epoch: [%3d] time: %.4f, lr: %.8f, loss: %s" %
-            (epoch, time.time() - start_time, results[-2], all_loss / train_steps / 2)
+            (epoch, time.time() - start_time, results[-2], all_loss / train_steps )
         )
 
         return all_loss / train_steps
@@ -291,56 +394,73 @@ class Controller_KG4Text(Controller):
 
         test_steps = len(text_seqs) // config.batch_size
 
+        topk_list = list()
         pred_class_list = list()
-        align_list = list()
+        # align_list = list()
+
+        # kg_vector_list = list()
 
         for cstep in range(test_steps):
 
             text_seqs_mini = text_seqs[cstep * config.batch_size : (cstep + 1) * config.batch_size]
             true_class_id_mini = class_list[cstep * config.batch_size : (cstep + 1) * config.batch_size]
 
-            encode_seqs_mini = dataloader.prepro_encode(text_seqs_mini.copy(), vocab)
+            encode_seqs_id_mini, encode_seqs_mat_mini = self.prepro_encode(text_seqs_mini)
 
             pred_mat = np.zeros([config.batch_size, len(self.class_dict)])
-            align_mat = np.zeros([config.batch_size, len(self.class_dict), config.max_length - 1])
+            # align_mat = np.zeros([config.batch_size, len(self.class_dict), self.model.max_length - 1])
+            # kg_vector_mat = np.zeros([config.batch_size, len(self.class_dict), config.max_length, config.kg_embedding_dim])
 
             for class_id in self.class_dict:
 
                 class_id_mini = np.array([class_id] * config.batch_size)
+
+                class_label_embed_mini = self.get_class_label_embed(class_id_mini)
+
                 category_logits = np.zeros([config.batch_size, 1])
                 for b in range(config.batch_size):
                     category_logits[b, 0] = int(class_id == true_class_id_mini[b])
 
+                kg_vector_seqs_mini = self.get_kg_vector_given_class(encode_seqs_id_mini, class_id_mini)
 
-                kg_vector_seqs_mini = self.get_kg_vector_given_class(encode_seqs_mini, class_id_mini)
-
-                test_loss, pred, align = self.sess.run([
+                test_loss, pred  = self.sess.run([
                     self.model.test_loss,
                     self.model.test_net.outputs,
-                    self.model.test_align.outputs,
+                    # self.model.test_align.outputs,
                 ], feed_dict={
-                    self.model.encode_seqs: encode_seqs_mini,
+                    self.model.encode_seqs: encode_seqs_mat_mini,
+                    self.model.class_label_seqs: class_label_embed_mini,
                     self.model.kg_vector: kg_vector_seqs_mini,
                     self.model.category_logits: category_logits,
                 })
 
+                # print(test_loss)
+
                 pred_mat[:, class_id - 1] = pred[:, 0]
-                align_mat[:, class_id - 1, :] = align[:, :, 0]
+                # align_mat[:, class_id - 1, :] = align[:, :, 0]
+                # kg_vector_mat[:, class_id - 1, :, :] = kg_vector_seqs_mini
 
             topk = self.get_pred_class_topk(pred_mat, k=1)
-            pred_class_list.append(topk)
+            topk_list.append(topk)
+            pred_class_list.append(pred_mat)
+            # kg_vector_list.append(kg_vector_mat)
 
-            align_list.append(align_mat)
+            # align_list.append(align_mat)
 
+            # print(align_mat)
             # print(pred_mat)
             # print(pred_class_list)
-            # print(class_list[: (cstep + 1) * config.batch_size])
+            # print([np.argmax(pred) + 1 for pred in pred_mat])
+            # print(true_class_id_mini)
             # exit()
 
-            if cstep % 100 == 0:
-                tmp_pred = self.get_one_hot_results(np.concatenate(pred_class_list, axis=0))
+            if cstep % config.cstep_print == 0:
+                tmp_pred = np.concatenate(pred_class_list, axis=0)
+                threshold = 0.5
+                tmp_pred[tmp_pred > threshold] = 1
+                tmp_pred[tmp_pred <= threshold] = 0
                 tmp_gt = self.get_one_hot_results(np.reshape(np.array(class_list[ : (cstep + 1) * config.batch_size]), newshape=(-1, 1)))
-                tmp_stats = utils.get_statistics(tmp_pred, tmp_gt, single_label_pred=True)
+                tmp_stats = utils.get_statistics(tmp_pred, tmp_gt, single_label_pred=False)
 
                 print(
                     "[Test] Epoch: [%3d][%4d/%4d] time: %.4f, \n %s" %
@@ -348,21 +468,30 @@ class Controller_KG4Text(Controller):
                 )
                 step_time = time.time()
 
-        prediction = self.get_one_hot_results(np.concatenate(pred_class_list, axis=0))
-        ground_truth = self.get_one_hot_results(np.reshape(np.array(class_list[: test_steps * config.batch_size]), newshape=(-1, 1)))
-        align = np.concatenate(align_list, axis=0)
+        prediction = np.concatenate(pred_class_list, axis=0)
 
-        stats = utils.get_statistics(prediction, ground_truth, single_label_pred=True)
+        tmp_pred = np.concatenate(pred_class_list, axis=0)
+        threshold = 0.5
+        tmp_pred[tmp_pred > threshold] = 1
+        tmp_pred[tmp_pred <= threshold] = 0
+
+        # topk_pred = self.get_one_hot_results(np.concatenate(topk_list, axis=0))
+        ground_truth = self.get_one_hot_results(np.reshape(np.array(class_list[: test_steps * config.batch_size]), newshape=(-1, 1)))
+
+        # align = np.concatenate(align_list, axis=0)
+        # kg_vector_full = np.concatenate(kg_vector_list, axis=0)
+
+        stats = utils.get_statistics(tmp_pred, ground_truth, single_label_pred=False)
 
         print(
             "[Test Sum] Epoch: [%3d] time: %.4f, \n %s" %
             (epoch, time.time() - start_time, utils.dict_to_string_4_print(stats))
         )
-        return stats, prediction, ground_truth, align
 
+        # return stats, prediction, ground_truth, align, kg_vector_full
+        return stats, prediction, ground_truth, np.array([0]), np.array([0])
 
-
-    def controller(self, train_text_seqs, train_class_list, test_text_seqs, test_class_list, train_epoch=config.train_epoch):
+    def controller(self, train_text_seqs, train_class_list, test_text_seqs, test_class_list, train_epoch=config.train_epoch, save_test_per_epoch=1):
 
         last_save_epoch = self.base_epoch
         global_epoch = self.base_epoch + 1
@@ -393,46 +522,57 @@ class Controller_KG4Text(Controller):
             self.__train__(
                 global_epoch,
                 train_text_seqs,
-                train_class_list
+                train_class_list,
+                max_train_steps=5000
             )
 
-            print("[Test] Testing seen classes")
-            state_seen, pred_seen, gt_seen, align_seen = self.__test__(
-                global_epoch,
-                seen_test_text_seqs,
-                seen_test_class_list
-            )
-
-            print("[Test] Testing unseen classes")
-            state_unseen, pred_unseen, gt_unseen, align_unseen = self.__test__(
-                global_epoch,
-                unseen_test_text_seqs,
-                unseen_test_class_list
-            )
-
-            np.savez(
-                self.log_save_dir + "test_%d" % global_epoch,
-                pred_seen=pred_seen,
-                pred_unseen=pred_unseen,
-                gt_seen=gt_seen,
-                gt_unseen=gt_unseen,
-                align_seen=align_seen,
-                align_unseen=align_unseen
-            )
-
-            if global_epoch > self.base_epoch and global_epoch % 1 == 0:
+            if global_epoch > self.base_epoch and global_epoch % save_test_per_epoch == 0:
                 self.save_model(
                     path=self.model_save_dir,
                     global_step=global_epoch
                 )
                 last_save_epoch = global_epoch
 
+            if global_epoch % save_test_per_epoch == 0:
+
+                # TODO: remove to get full test
+                print("[Test] Testing seen classes")
+                state_seen, pred_seen, gt_seen, align_seen, kg_vector_seen = self.__test__(
+                    global_epoch,
+                    [_ for idx, _ in enumerate(seen_test_text_seqs) if idx % 10 == 0],
+                    [_ for idx, _ in enumerate(seen_test_class_list) if idx % 10 == 0],
+                )
+
+                # TODO: remove to get full test
+                print("[Test] Testing unseen classes")
+                state_unseen, pred_unseen, gt_unseen, align_unseen, kg_vector_unseen = self.__test__(
+                    global_epoch,
+                    [_ for idx, _ in enumerate(unseen_test_text_seqs) if idx % 2 == 0],
+                    [_ for idx, _ in enumerate(unseen_test_class_list) if idx % 2 == 0],
+                )
+
+                np.savez(
+                    self.log_save_dir + "test_%d" % global_epoch,
+                    pred_seen=pred_seen,
+                    pred_unseen=pred_unseen,
+                    gt_seen=gt_seen,
+                    gt_unseen=gt_unseen,
+                    align_seen=align_seen,
+                    align_unseen=align_unseen,
+                    kg_vector_seen=kg_vector_seen,
+                    kg_vector_unseen=kg_vector_unseen,
+                    )
+                error.rejection_single_label(self.log_save_dir + "test_%d.npz" % global_epoch)
+                error.classify_single_label(self.log_save_dir + "test_%d.npz" % global_epoch)
+
             global_epoch += 1
 
-    def controller4test(self, test_text_seqs, test_class_list, base_epoch=None):
+    def controller4test(self, test_text_seqs, test_class_list, unseen_class_list, base_epoch=None):
+
+        self.unseen_class = unseen_class_list
 
         last_save_epoch = self.base_epoch if base_epoch is None else base_epoch
-        global_epoch = self.base_epoch + 1 if base_epoch is None else base_epoch + 1
+        global_epoch = self.base_epoch if base_epoch is None else base_epoch
 
         if last_save_epoch >= 0:
             self.restore_model(
@@ -451,19 +591,20 @@ class Controller_KG4Text(Controller):
         for class_id in unseen_test_class_list:
             assert not self.check_seen(class_id)
 
-        # TODO: uncomment this
-        # print("[Test] Testing seen classes")
-        # state_seen, pred_seen, gt_seen, align_seen = self.__test__(
-        #     global_epoch,
-        #     seen_test_text_seqs,
-        #     seen_test_class_list
-        # )
-
-        print("[Test] Testing unseen classes")
-        state_unseen, pred_unseen, gt_unseen, align_unseen = self.__test__(
+        # TODO: remove to get full test
+        print("[Test] Testing seen classes")
+        state_seen, pred_seen, gt_seen, align_seen, kg_vector_seen = self.__test__(
             global_epoch,
-            unseen_test_text_seqs,
-            unseen_test_class_list
+            [_ for idx, _ in enumerate(seen_test_text_seqs) if idx % 1 == 0],
+            [_ for idx, _ in enumerate(seen_test_class_list) if idx % 1 == 0],
+        )
+
+        # TODO: remove to get full test
+        print("[Test] Testing unseen classes")
+        state_unseen, pred_unseen, gt_unseen, align_unseen, kg_vector_unseen = self.__test__(
+            global_epoch,
+            [_ for idx, _ in enumerate(unseen_test_text_seqs) if idx % 1 == 0],
+            [_ for idx, _ in enumerate(unseen_test_class_list) if idx % 1 == 0],
         )
 
         np.savez(
@@ -473,22 +614,47 @@ class Controller_KG4Text(Controller):
             gt_seen=gt_seen,
             gt_unseen=gt_unseen,
             align_seen=align_seen,
-            align_unseen=align_unseen
+            align_unseen=align_unseen,
+            kg_vector_seen=kg_vector_seen,
+            kg_vector_unseen=kg_vector_unseen,
         )
 
+        error.rejection_single_label(self.log_save_dir + "test_%d.npz" % global_epoch)
+        error.classify_single_label(self.log_save_dir + "test_%d.npz" % global_epoch)
 
 if __name__ == "__main__":
 
+    # DBpedia
     vocab = dataloader.build_vocabulary_from_full_corpus(
-        config.zhang15_dbpedia_full_data_path, config.zhang15_dbpedia_vocab_path, column="text", force_process=False
+        config.zhang15_dbpedia_full_data_path, config.zhang15_dbpedia_vocab_path, column="selected", force_process=False,
+        min_word_count=55
     )
 
-    kg_vector_dict = dataloader.load_kg_vector(config.kg_vector_data_path)
+    glove_mat = dataloader.load_glove_word_vector(
+        config.word_embed_file_path, config.zhang15_dbpedia_word_embed_matrix_path, vocab, force_process=False
+    )
+    assert np.sum(glove_mat[vocab.start_id]) == 0
+    assert np.sum(glove_mat[vocab.end_id]) == 0
+    assert np.sum(glove_mat[vocab.unk_id]) == 0
+    assert np.sum(glove_mat[vocab.pad_id]) == 0
 
     class_dict = dataloader.load_class_dict(
         class_file=config.zhang15_dbpedia_class_label_path,
         class_code_column="ClassCode",
         class_name_column="ConceptNet"
+    )
+
+    # check class label in vocab and glove
+    for class_id in class_dict:
+        class_label = class_dict[class_id]
+        class_label_word_id = vocab.word_to_id(class_label)
+        assert class_label_word_id != vocab.unk_id
+        assert np.sum(glove_mat[class_label_word_id]) != 0
+
+    kg_vector_dict = dataloader.load_kg_vector(
+        config.zhang15_dbpedia_kg_vector_dir,
+        config.zhang15_dbpedia_kg_vector_prefix,
+        class_dict
     )
 
     train_class_list = dataloader.load_data_class(
@@ -498,14 +664,8 @@ if __name__ == "__main__":
 
     train_text_seqs = dataloader.load_data_from_text_given_vocab(
         config.zhang15_dbpedia_train_path, vocab, config.zhang15_dbpedia_train_processed_path,
-        column="text", force_process=False
+        column="selected", force_process=False
     )
-
-    # train_kg_vector = dataloader.load_kg_vector_given_text_seqs(
-    #     train_text_seqs, vocab, class_dict, kg_vector_dict,
-    #     processed_file=config.zhang15_dbpedia_kg_vector_train_processed_path,
-    #     force_process=False
-    # )
 
     test_class_list = dataloader.load_data_class(
         filename=config.zhang15_dbpedia_test_path,
@@ -514,44 +674,275 @@ if __name__ == "__main__":
 
     test_text_seqs = dataloader.load_data_from_text_given_vocab(
         config.zhang15_dbpedia_test_path, vocab, config.zhang15_dbpedia_test_processed_path,
+        column="selected", force_process=False
+    )
+
+    # lenlist = [len(text) for text in test_text_seqs]
+    # print(np.mean(lenlist))
+    # print(np.percentile(lenlist, 95))
+    # print(np.percentile(lenlist, 90))
+    # print(np.percentile(lenlist, 80))
+    # exit()
+
+    for i in range(10):
+
+        unseen_percentage = 0.5
+        max_length = 50
+
+        with tf.Graph().as_default() as graph:
+            tl.layers.clear_layers_name()
+
+            mdl = model.Model_KG4Text(
+                model_name="selected_zhang15_dbpedia_kg3_random%d_unseen%.2f_max%d_cnn_negative%d_randomtext" \
+                           % (i + 1, unseen_percentage, max_length, -1),
+                start_learning_rate=0.0004,
+                decay_rate=0.8,
+                decay_steps=4e3,
+                vocab_size=20000,
+                max_length=max_length
+            )
+            ctl = Controller_KG4Text(
+                model=mdl,
+                vocab=vocab,
+                class_dict=class_dict,
+                kg_vector_dict=kg_vector_dict,
+                word_embed_mat=glove_mat,
+                lemma=False,
+                # lemma=True,
+                random_unseen=True,
+                random_percentage=unseen_percentage,
+                base_epoch=-1,
+            )
+            ctl.controller(train_text_seqs, train_class_list, test_text_seqs, test_class_list, train_epoch=10)
+            # unseen_class_list = [4, 2, 11]
+            # ctl.controller4test(test_text_seqs, test_class_list, unseen_class_list, base_epoch=5)
+            ctl.controller4test(test_text_seqs, test_class_list, unseen_class_list=ctl.unseen_class, base_epoch=10)
+
+            ctl.sess.close()
+
+    # chen14 dataset
+
+    '''
+    vocab = dataloader.build_vocabulary_from_full_corpus(
+        config.chen14_full_data_path, config.chen14_vocab_path, column="text", force_process=False
+    )
+
+    glove_mat = dataloader.load_glove_word_vector(
+        config.word_embed_file_path, config.chen14_word_embed_matrix_path, vocab, force_process=False
+    )
+
+    class_dict = dataloader.load_class_dict(
+        class_file=config.chen14_class_label_path,
+        class_code_column="ClassCode",
+        class_name_column="ConceptNet"
+    )
+
+    # check class label in vocab and glove
+    for class_id in class_dict:
+        class_label = class_dict[class_id]
+        class_label_word_id = vocab.word_to_id(class_label)
+        assert class_label_word_id != vocab.unk_id
+        assert np.sum(glove_mat[class_label_word_id]) != 0
+
+    kg_vector_dict = dataloader.load_kg_vector(
+        config.chen14_kg_vector_dir,
+        config.chen14_kg_vector_prefix,
+        class_dict
+    )
+
+    train_class_list = dataloader.load_data_class(
+        filename=config.chen14_train_path,
+        column="class",
+    )
+
+    train_text_seqs = dataloader.load_data_from_text_given_vocab(
+        config.chen14_train_path, vocab, config.chen14_train_processed_path,
         column="text", force_process=False
     )
 
-    # test_kg_vector = dataloader.load_kg_vector_given_text_seqs(
-    #     test_text_seqs, vocab, class_dict, kg_vector_dict,
-    #     processed_file=config.zhang15_dbpedia_kg_vector_test_processed_path,
-    #     force_process=False
-    # )
+    test_class_list = dataloader.load_data_class(
+        filename=config.chen14_test_path,
+        column="class",
+    )
 
-    with tf.Graph().as_default() as graph:
-        tl.layers.clear_layers_name()
+    test_text_seqs = dataloader.load_data_from_text_given_vocab(
+        config.chen14_test_path, vocab, config.chen14_test_processed_path,
+        column="text", force_process=False
+    )
 
-        current_fold = 4
-        num_fold = 4
+    for i in range(10):
 
-        mdl = model.Model_KG4Text(
-            model_name="key_zhang15_dbpedia_%dof%d" % (current_fold, num_fold),
-            start_learning_rate=0.0004,
-            decay_rate=0.8,
-            decay_steps=5e3,
-            vocab_size=15000
-        )
-        ctl = Controller_KG4Text(
-            model=mdl,
-            vocab=vocab,
-            class_dict=class_dict,
-            kg_vector_dict=kg_vector_dict,
-            num_fold=num_fold,
-            current_fold=current_fold,
-            base_epoch=-1
-        )
-        ctl.controller(train_text_seqs, train_class_list, test_text_seqs, test_class_list, train_epoch=5)
-        # ctl.controller4test(test_text_seqs, test_class_list, base_epoch=2)
+        unseen_percentage = 0.25
 
-        ctl.sess.close()
+        with tf.Graph().as_default() as graph:
+            tl.layers.clear_layers_name()
+
+            mdl = model.Model_KG4Text(
+                model_name="key_chen14_kg3_random%d_unseen%.2f" % (i + 1, unseen_percentage),
+                start_learning_rate=0.0001,
+                decay_rate=0.8,
+                decay_steps=5e3,
+                vocab_size=8000,
+                max_length=10,
+                hidden_dim=512,
+            )
+            ctl = Controller_KG4Text(
+                model=mdl,
+                vocab=vocab,
+                class_dict=class_dict,
+                kg_vector_dict=kg_vector_dict,
+                word_embed_mat=glove_mat,
+                # lemma=False,
+                lemma=True,
+                random_unseen=True,
+                random_percentage=unseen_percentage,
+                base_epoch=-1,
+            )
+            # ctl.controller(train_text_seqs, train_class_list, test_text_seqs, test_class_list, train_epoch=20, save_test_per_epoch=5)
+            unseen_class_list = [35, 29, 31, 19, 15, 25, 11, 50, 33, 46, 3, 36]
+            ctl.controller4test(test_text_seqs, test_class_list, unseen_class_list, base_epoch=0)
+            exit()
+
+            ctl.sess.close()
+    '''
+
+    # 20 news
+    '''
+    vocab = dataloader.build_vocabulary_from_full_corpus(
+        config.news20_full_data_path, config.news20_vocab_path, column="selected", force_process=False,
+        min_word_count=10
+    )
+
+    glove_mat = dataloader.load_glove_word_vector(
+        config.word_embed_file_path, config.news20_word_embed_matrix_path, vocab, force_process=False
+    )
+    assert np.sum(glove_mat[vocab.start_id]) == 0
+    assert np.sum(glove_mat[vocab.end_id]) == 0
+    assert np.sum(glove_mat[vocab.unk_id]) == 0
+    assert np.sum(glove_mat[vocab.pad_id]) == 0
+
+    class_dict = dataloader.load_class_dict(
+        class_file=config.news20_class_label_path,
+        class_code_column="ClassCode",
+        class_name_column="ConceptNet"
+    )
+
+    # score_matrix = np.zeros((len(class_dict), len(class_dict)))
+    # class_list = [class_dict[class_id] for class_id in class_dict]
+    # glove_matrix = np.array([glove_mat[vocab.word_to_id(class_dict[class_id])] for class_id in class_dict])
+    # score_matrix = sklearn.metrics.pairwise.cosine_similarity(glove_matrix, glove_matrix)
+
+    # plt.imshow(score_matrix, cmap='hot', interpolation='nearest')
+    # import seaborn as sns
+    # sns.heatmap(score_matrix)
+    # plt.yticks(range(len(class_list)), class_list)
+    # plt.xticks(range(len(class_list)), class_list)
+    # plt.yticks(rotation=0)
+    # plt.xticks(rotation=90)
+    # plt.tight_layout()
+    # plt.savefig("correlation.png")
+    # plt.clf()
+
+    # softmax_score_matrix = np.exp(score_matrix)
+    # for i in range(softmax_score_matrix.shape[0]):
+    #     softmax_score_matrix[i] /= np.sum(softmax_score_matrix[i])
+
+    # plt.imshow(softmax_score_matrix, cmap='hot', interpolation='nearest')
+    # sns.heatmap(softmax_score_matrix)
+    # plt.yticks(range(len(class_list)), class_list)
+    # plt.xticks(range(len(class_list)), class_list)
+    # plt.yticks(rotation=0)
+    # plt.xticks(rotation=90)
+    # plt.tight_layout()
+    # plt.savefig("correlation_softmax.png")
+    # plt.clf()
+    # exit()
+
+
+    # check class label in vocab and glove
+    for class_id in class_dict:
+        class_label = class_dict[class_id]
+        class_label_word_id = vocab.word_to_id(class_label)
+        assert class_label_word_id != vocab.unk_id
+        assert np.sum(glove_mat[class_label_word_id]) != 0
+
+    kg_vector_dict = dataloader.load_kg_vector(
+        config.news20_kg_vector_dir,
+        config.news20_kg_vector_prefix,
+        class_dict
+    )
+
+    train_class_list = dataloader.load_data_class(
+        filename=config.news20_train_path,
+        column="class",
+    )
+
+    train_text_seqs = dataloader.load_data_from_text_given_vocab(
+        config.news20_train_path, vocab, config.news20_train_processed_path,
+        column="selected", force_process=False
+    )
+
+    test_class_list = dataloader.load_data_class(
+        filename=config.news20_test_path,
+        column="class",
+    )
+
+    test_text_seqs = dataloader.load_data_from_text_given_vocab(
+        config.news20_test_path, vocab, config.news20_test_processed_path,
+        column="selected", force_process=False
+    )
+
+    # for idx in range(1000, 1010):
+    #     print(test_class_list[idx], class_dict[test_class_list[idx]])
+    #     print(test_text_seqs[idx])
+    #     print([vocab.id_to_word(word_id) for word_id in test_text_seqs[idx]])
+    #     print([1 if np.sum(glove_mat[word_id]) else 0 for word_id in test_text_seqs[idx]])
+    # lenlist = [len(text) for text in test_text_seqs]
+    # print(np.mean(lenlist))
+    # print(np.percentile(lenlist, 95))
+    # print(np.percentile(lenlist, 90))
+    # print(np.percentile(lenlist, 80))
+
+    for i in range(10):
+
+        unseen_percentage = 0.25
+        max_length = 200
+
+        with tf.Graph().as_default() as graph:
+            tl.layers.clear_layers_name()
+
+            mdl = model.Model_KG4Text(
+                model_name="selected_news20_kg3_random%d_unseen%.2f_max%d_cnn_negative%d_randomtext" \
+                           % (i + 1, unseen_percentage, max_length, -1),
+                start_learning_rate=0.0004,
+                decay_rate=0.8,
+                decay_steps=500,
+                vocab_size=20000,
+                max_length=max_length,
+                hidden_dim=512,
+            )
+            ctl = Controller_KG4Text(
+                model=mdl,
+                vocab=vocab,
+                class_dict=class_dict,
+                kg_vector_dict=kg_vector_dict,
+                word_embed_mat=glove_mat,
+                # lemma=False,
+                lemma=True,
+                random_unseen=True,
+                random_percentage=unseen_percentage,
+                base_epoch=-1,
+            )
+            ctl.controller(train_text_seqs, train_class_list, test_text_seqs, test_class_list, train_epoch=20)
+            # unseen_class_list = [35, 29, 31, 19, 15, 25, 11, 50, 33, 46, 3, 36]
+            # unseen_class_list = [10, 17, 14, 11, 8]
+            # ctl.controller4test(test_text_seqs, test_class_list, unseen_class_list, base_epoch=20)
+            ctl.controller4test(test_text_seqs, test_class_list, unseen_class_list=ctl.unseen_class, base_epoch=20)
+
+            ctl.sess.close()
+    '''
+
     pass
-
-
 
 
 

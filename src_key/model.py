@@ -4,6 +4,7 @@ import tensorlayer as tl
 from tensorlayer.layers import \
     Layer, \
     InputLayer, Conv1d, MaxPool1d, \
+    Conv1dLayer, \
     RNNLayer, DropoutLayer, DenseLayer, \
     LambdaLayer, ReshapeLayer, ConcatLayer, \
     Conv2d, MaxPool2d, FlattenLayer, \
@@ -16,202 +17,6 @@ import logging
 
 import config
 
-
-class DynamicAttentionRNNDecodeLayer(Layer):
-
-    def __init__(
-            self,
-            prev_layer,
-            encode_layer,
-            cell_fn,  #tf.nn.rnn_cell.LSTMCell,
-            cell_init_args=None,
-            attention_fn=tf.contrib.seq2seq.LuongAttention,
-            attention_fn_args=None,
-            n_hidden=256,
-            initializer=tf.random_uniform_initializer(-0.1, 0.1),
-            sequence_length=None,
-            initial_state=None,
-            dropout=None,
-            n_layer=1,
-            return_seq_2d=False,
-            dynamic_rnn_init_args=None,
-            name='dynamic_attention_rnn_decode',
-    ):
-        super(DynamicAttentionRNNDecodeLayer, self).__init__(prev_layer=prev_layer, name=name)
-
-        self.inputs = prev_layer.outputs
-
-        if dynamic_rnn_init_args is None:
-            dynamic_rnn_init_args = {}
-        if cell_init_args is None:
-            cell_init_args = {'state_is_tuple': True}
-        if attention_fn_args is None:
-            attention_fn_args = {}
-        if cell_fn is None:
-            raise Exception("Please put in cell_fn")
-        if 'GRU' in cell_fn.__name__:
-            try:
-                cell_init_args.pop('state_is_tuple')
-            except Exception:
-                logging.warning("pop state_is_tuple fails.")
-
-        logging.info(
-            "DynamicRNNLayer %s: n_hidden:%d, in_dim:%d in_shape:%s cell_fn:%s dropout:%s n_layer:%d" % (
-                self.name, n_hidden, self.inputs.get_shape().ndims, self.inputs.get_shape(), cell_fn.__name__, dropout,
-                n_layer
-            )
-        )
-
-        # Input dimension should be rank 3 [batch_size, n_steps(max), n_features]
-        try:
-            self.inputs.get_shape().with_rank(3)
-        except Exception:
-            raise Exception("RNN : Input dimension should be rank 3 : [batch_size, n_steps(max), n_features]")
-
-        # Get the batch_size
-        fixed_batch_size = self.inputs.get_shape().with_rank_at_least(1)[0]
-        if fixed_batch_size.value:
-            batch_size = fixed_batch_size.value
-            logging.info("       batch_size (concurrent processes): %d" % batch_size)
-        else:
-            from tensorflow.python.ops import array_ops
-            batch_size = array_ops.shape(self.inputs)[0]
-            logging.info("       non specified batch_size, uses a tensor instead.")
-        self.batch_size = batch_size
-
-        # Creats the cell function
-        # cell_instance_fn=lambda: cell_fn(num_units=n_hidden, **cell_init_args) # HanSheng
-
-        rnn_creator = lambda: cell_fn(num_units=n_hidden, **cell_init_args)
-
-        attention_mechanism = attention_fn(num_units=n_hidden, memory=encode_layer.outputs, memory_sequence_length=sequence_length, **attention_fn_args)
-
-        attention_creator = lambda: tf.contrib.seq2seq.AttentionWrapper(
-            rnn_creator(), attention_mechanism,
-            attention_layer_size=n_hidden
-        )
-
-        # cell_instance_fn2=cell_instance_fn # HanSheng
-
-        # Apply dropout
-        if dropout:
-            if isinstance(dropout, (tuple, list)):
-                in_keep_prob = dropout[0]
-                out_keep_prob = dropout[1]
-            elif isinstance(dropout, float):
-                in_keep_prob, out_keep_prob = dropout, dropout
-            else:
-                raise Exception("Invalid dropout type (must be a 2-D tuple of " "float)")
-            try:  # TF1.0
-                DropoutWrapper_fn = tf.contrib.rnn.DropoutWrapper
-            except Exception:
-                DropoutWrapper_fn = tf.nn.rnn_cell.DropoutWrapper
-
-            # cell_instance_fn1=cell_instance_fn        # HanSheng
-            # cell_instance_fn=DropoutWrapper_fn(
-            #                     cell_instance_fn1(),
-            #                     input_keep_prob=in_keep_prob,
-            #                     output_keep_prob=out_keep_prob)
-            cell_creator = lambda is_last=True: DropoutWrapper_fn(
-                attention_creator(), input_keep_prob=in_keep_prob, output_keep_prob=out_keep_prob if is_last else 1.0
-            )
-        else:
-            cell_creator = attention_creator
-
-        self.cell = cell_creator()
-
-        # Apply multiple layers
-        if n_layer > 1:
-            try:
-                MultiRNNCell_fn = tf.contrib.rnn.MultiRNNCell
-            except Exception:
-                MultiRNNCell_fn = tf.nn.rnn_cell.MultiRNNCell
-
-            if dropout:
-                try:
-                    # cell_instance_fn=lambda: MultiRNNCell_fn([cell_instance_fn2() for _ in range(n_layer)], state_is_tuple=True) # HanSheng
-                    self.cell = MultiRNNCell_fn(
-                        [cell_creator(is_last=i == n_layer - 1) for i in range(n_layer)], state_is_tuple=True
-                    )
-                except Exception:  # when GRU
-                    # cell_instance_fn=lambda: MultiRNNCell_fn([cell_instance_fn2() for _ in range(n_layer)]) # HanSheng
-                    self.cell = MultiRNNCell_fn([cell_creator(is_last=i == n_layer - 1) for i in range(n_layer)])
-            else:
-                try:
-                    self.cell = MultiRNNCell_fn([cell_creator() for _ in range(n_layer)], state_is_tuple=True)
-                except Exception:  # when GRU
-                    self.cell = MultiRNNCell_fn([cell_creator() for _ in range(n_layer)])
-
-        # self.cell=cell_instance_fn() # HanSheng
-
-        # Initialize initial_state
-        if initial_state is None:
-            self.initial_state = self.cell.zero_state(batch_size, dtype=tl.layers.LayersConfig.tf_dtype)  # dtype=tf.float32)
-        else:
-            self.initial_state = self.cell.zero_state(batch_size, dtype=tl.layers.LayersConfig.tf_dtype).clone(cell_state=initial_state)
-
-        # Computes sequence_length
-        if sequence_length is None:
-            try:  # TF1.0
-                sequence_length = retrieve_seq_length_op(
-                    self.inputs if isinstance(self.inputs, tf.Tensor) else tf.stack(self.inputs)
-                )
-            except Exception:  # TF0.12
-                sequence_length = retrieve_seq_length_op(
-                    self.inputs if isinstance(self.inputs, tf.Tensor) else tf.pack(self.inputs)
-                )
-
-        # Main - Computes outputs and last_states
-        with tf.variable_scope(name, initializer=initializer) as vs:
-            print(self.cell)
-            print(self.inputs)
-            print(self.initial_state)
-            outputs, last_states = tf.nn.dynamic_rnn(
-                cell=self.cell,
-                # inputs=X
-                inputs=self.inputs,
-                # dtype=tf.float64,
-                sequence_length=sequence_length,
-                initial_state=self.initial_state,
-                **dynamic_rnn_init_args
-            )
-            rnn_variables = tf.get_collection(tl.layers.TF_GRAPHKEYS_VARIABLES, scope=vs.name)
-
-            # [batch_size, n_step(max), n_hidden]
-            # self.outputs = result[0]["outputs"]
-            # self.outputs = outputs    # it is 3d, but it is a list
-            if return_seq_2d:
-                # PTB tutorial:
-                # 2D Tensor [n_example, n_hidden]
-                try:  # TF1.0
-                    self.outputs = tf.reshape(tf.concat(outputs, 1), [-1, n_hidden])
-                except Exception:  # TF0.12
-                    self.outputs = tf.reshape(tf.concat(1, outputs), [-1, n_hidden])
-            else:
-                # <akara>:
-                # 3D Tensor [batch_size, n_steps(max), n_hidden]
-                max_length = tf.shape(outputs)[1]
-                batch_size = tf.shape(outputs)[0]
-
-                try:  # TF1.0
-                    self.outputs = tf.reshape(tf.concat(outputs, 1), [batch_size, max_length, n_hidden])
-                except Exception:  # TF0.12
-                    self.outputs = tf.reshape(tf.concat(1, outputs), [batch_size, max_length, n_hidden])
-                    # self.outputs = tf.reshape(tf.concat(1, outputs), [-1, max_length, n_hidden])
-
-        # Final state
-        self.final_state = last_states
-
-        self.sequence_length = sequence_length
-
-        # self.all_layers = list(layer.all_layers)
-        # self.all_params = list(layer.all_params)
-        # self.all_drop = dict(layer.all_drop)
-
-        self.all_layers.append(self.outputs)
-        self.all_params.extend(rnn_variables)
-
-
 class Model_KG4Text():
 
     def __init__(
@@ -223,7 +28,8 @@ class Model_KG4Text():
             word_embedding_dim=config.word_embedding_dim,
             hidden_dim=config.hidden_dim,
             kg_embedding_dim=config.kg_embedding_dim,
-            vocab_size=config.vocab_size
+            vocab_size=config.vocab_size,
+            max_length=config.max_length
     ):
         self.model_name = model_name
         self.start_learning_rate = start_learning_rate
@@ -233,6 +39,7 @@ class Model_KG4Text():
         self.kg_embedding_dim = kg_embedding_dim
         self.hidden_dim = hidden_dim
         self.vocab_size = vocab_size
+        self.max_length = max_length
 
         self.__create_placeholders__()
         self.__create_model__()
@@ -240,29 +47,41 @@ class Model_KG4Text():
         self.__create_training_op__()
 
     def __create_placeholders__(self):
-        self.encode_seqs = tf.placeholder(dtype=tf.int32, shape=[config.batch_size, config.max_length], name="encode_seqs")
-        self.kg_vector = tf.placeholder(dtype=tf.float32, shape=[config.batch_size, config.max_length, self.kg_embedding_dim], name="kg_score")
+        # self.encode_seqs = tf.placeholder(dtype=tf.int32, shape=[config.batch_size, self.max_length], name="encode_seqs")
+        self.encode_seqs = tf.placeholder(dtype=tf.float32, shape=[config.batch_size, self.max_length, self.word_embedding_dim], name="encode_seqs")
+        self.class_label_seqs = tf.placeholder(dtype=tf.float32, shape=[config.batch_size, self.max_length, self.word_embedding_dim], name="class_label_seqs")
+        self.kg_vector = tf.placeholder(dtype=tf.float32, shape=[config.batch_size, self.max_length, self.kg_embedding_dim], name="kg_score")
         self.category_logits = tf.placeholder(dtype=tf.float32, shape=[config.batch_size, 1], name="category_logits")
+
         self.class_id_seqs = tf.placeholder(dtype=tf.int32, shape=[config.batch_size, 1], name="class_id_seqs")
 
-        self.encode_seqs_infer = tf.placeholder(dtype=tf.int32, shape=[1, config.max_length], name="encode_seqs_inference")
-        self.kg_vector_infer = tf.placeholder(dtype=tf.float32, shape=[1, config.max_length, self.kg_embedding_dim], name="kg_score_inference")
+        # self.encode_seqs_infer = tf.placeholder(dtype=tf.int32, shape=[1, self.max_length], name="encode_seqs_inference")
+        self.encode_seqs_infer = tf.placeholder(dtype=tf.float32, shape=[1, self.max_length, self.word_embedding_dim], name="encode_seqs_inference")
+        self.class_label_seqs_infer = tf.placeholder(dtype=tf.float32, shape=[1, self.max_length, self.word_embedding_dim], name="class_label_inference")
+        self.kg_vector_infer = tf.placeholder(dtype=tf.float32, shape=[1, self.max_length, self.kg_embedding_dim], name="kg_score_inference")
         self.category_logits_infer = tf.placeholder(dtype=tf.float32, shape=[1, 1], name="category_logits_inference")
+
         self.class_id_seqs_infer = tf.placeholder(dtype=tf.int32, shape=[1, 1], name="class_id_seqs")
 
     def __create_model__(self):
-        self.train_net, self.train_align = self.__get_network__(self.model_name, self.encode_seqs, self.kg_vector, reuse=False, is_train=True)
-        self.test_net, self.test_align = self.__get_network__(self.model_name, self.encode_seqs, self.kg_vector, reuse=True, is_train=False)
-        self.infer_net, self.infer_align = self.__get_network__(self.model_name, self.encode_seqs_infer, self.kg_vector_infer, reuse=True, is_train=False)
+        # self.train_net, self.train_align = self.__get_network__(self.model_name, self.encode_seqs, self.class_label_seqs, self.kg_vector, reuse=False, is_train=True)
+        # self.test_net, self.test_align = self.__get_network__(self.model_name, self.encode_seqs, self.class_label_seqs, self.kg_vector, reuse=True, is_train=False)
+        # self.infer_net, self.infer_align = self.__get_network__(self.model_name, self.encode_seqs_infer, self.class_label_seqs_infer, self.kg_vector_infer, reuse=True, is_train=False)
+        self.train_net = self.__get_network__(self.model_name, self.encode_seqs, self.class_label_seqs, self.kg_vector, reuse=False, is_train=True)
+        self.test_net = self.__get_network__(self.model_name, self.encode_seqs, self.class_label_seqs, self.kg_vector, reuse=True, is_train=False)
 
-    def __get_network__(self, model_name, encode_seqs, kg_vector, reuse=False, is_train=True):
+    def __get_network__(self, model_name, encode_seqs, class_label_seqs, kg_vector, reuse=False, is_train=True):
         with tf.variable_scope(model_name, reuse=reuse):
+            tl.layers.set_name_reuse(reuse)
 
-            net_word_embed = EmbeddingInputlayer(
+            net_word_embed = InputLayer(
                 inputs=encode_seqs,
-                vocabulary_size = self.vocab_size,
-                embedding_size = self.word_embedding_dim,
-                name='seq_embedding'
+                name="in_word_embed"
+            )
+
+            net_class_label_embed = InputLayer(
+                inputs=class_label_seqs,
+                name="in_class_label_embed"
             )
 
             net_kg = InputLayer(
@@ -278,67 +97,154 @@ class Model_KG4Text():
 
             net_kg = DenseLayer(
                 net_kg,
-                n_units=64,
+                n_units=200,
                 act=tf.nn.relu,
                 name='dense_kg'
             )
 
             net_kg = ReshapeLayer(
                 net_kg,
-                shape=(-1, config.max_length, 64),
+                shape=(-1, self.max_length, 200),
                 name="reshape_kg_2"
             )
 
             net_in = ConcatLayer(
-                [net_word_embed, net_kg],
+                [net_word_embed, net_class_label_embed, net_kg],
                 concat_dim=-1,
                 name='concat_kg_word'
             )
 
-            net_encoder = RNNLayer(
-                net_in,
-                cell_fn = tf.contrib.rnn.BasicLSTMCell,
-                n_hidden = self.hidden_dim,
-                n_steps = config.max_length,
-                return_last = False,
-                return_seq_2d = False,
-                name = 'net_encoder'
+            filter_length = [3, 4, 5]
+            n_filter = 200
+
+            net_cnn_list = list()
+
+            for fsz in filter_length:
+
+                net_cnn = Conv1d(
+                    net_in,
+                    n_filter=n_filter,
+                    filter_size=fsz,
+                    stride=1,
+                    act=tf.nn.relu,
+                    name="cnn%d" % fsz
+                )
+                net_cnn.outputs = tf.reduce_max(net_cnn.outputs, axis=1, name="global_maxpool%d" % fsz)
+                net_cnn_list.append(net_cnn)
+
+            net_cnn = ConcatLayer(net_cnn_list, concat_dim=-1)
+
+            net_fc = DenseLayer(
+                net_cnn,
+                n_units=300,
+                act=tf.nn.relu,
+                name="fc_1"
             )
 
-            net_align = LambdaLayer(
-                net_encoder,
-                fn=self.__attention_align__,
-                name="attention_align"
-            )
-
-            net_attention = LambdaLayer(
-                net_encoder,
-                fn=self.__attention_h_star__,
-                fn_args={'align': net_align.outputs},
-                name="attention_h_star"
-            )
-
-            # net_encoder.outputs = net_encoder.outputs[:, -1, :]
-
-            net_out = DenseLayer(
-                net_attention,
-                # net_encoder,
+            net_fc = DenseLayer(
+                net_fc,
                 n_units=1,
-                act=tf.sigmoid,
-                name='dense'
+                act=tf.nn.sigmoid,
+                name="fc_2"
             )
+        return net_fc
 
-        return net_out, net_align
+    '''
+    def __get_network__(self, model_name, encode_seqs, class_label_seqs, kg_vector, reuse=False, is_train=True):
+        with tf.variable_scope(model_name, reuse=reuse):
 
-    def __attention_align__(self, inputs):
+             net_word_embed = InputLayer(
+                 inputs=encode_seqs,
+                 name="in_word_embed"
+             )
+
+             net_class_label_embed = InputLayer(
+                 inputs=class_label_seqs,
+                 name="in_class_label_embed"
+             )
+
+             net_kg = InputLayer(
+                 inputs=kg_vector,
+                 name='in_kg'
+             )
+
+             net_kg = ReshapeLayer(
+                 net_kg,
+                 shape=(-1, config.kg_embedding_dim),
+                 name="reshape_kg_1"
+             )
+
+             net_kg = DenseLayer(
+                 net_kg,
+                 n_units=200,
+                 act=tf.nn.relu,
+                 name='dense_kg'
+             )
+
+             net_kg = ReshapeLayer(
+                 net_kg,
+                 shape=(-1, self.max_length, 200),
+                 name="reshape_kg_2"
+             )
+
+             net_in = ConcatLayer(
+                 [net_word_embed, net_class_label_embed, net_kg],
+                 concat_dim=-1,
+                 name='concat_kg_word'
+             )
+
+             net_encoder = RNNLayer(
+                 net_in,
+                 cell_fn = tf.contrib.rnn.BasicLSTMCell,
+                 n_hidden = self.hidden_dim,
+                 n_steps = self.max_length,
+                     return_last = False,
+                     return_seq_2d = False,
+                     name = 'net_encoder'
+                 )
+     
+                 net_align = LambdaLayer(
+                     net_encoder,
+                     fn=self.__attention_align_1__,
+                     name="attention_align"
+                 )
+     
+                 # net_align = LambdaLayer(
+                 #     net_word_embed,
+                 #     fn=self.__attention_align_2__,
+                 #     fn_args={"classlabel": net_class_label_embed.outputs, "kgvector": net_kg.outputs},
+                 #     name="attention_align"
+                 # )
+     
+                 net_attention = LambdaLayer(
+                     net_encoder,
+                     fn=self.__attention_h_star__,
+                     fn_args={'align': net_align.outputs},
+                     name="attention_h_star"
+                 )
+     
+                 # net_encoder.outputs = net_encoder.outputs[:, -1, :]
+     
+                 net_out = DenseLayer(
+                     net_attention,
+                     # net_encoder,
+                     n_units=1,
+                     act=tf.sigmoid,
+                     name='dense'
+                 )
+     
+             return net_out, net_align
+     '''
+
+    def __attention_align_1__(self, inputs):
         # print(inputs.get_shape())
 
-        # W_a = tf.get_variable(
-        #     name="attention_w_a",
-        #     shape=(inputs.get_shape()[-1], inputs.get_shape()[-1]),
-        #     initializer=tf.random_uniform_initializer(-0.1, 0.1),
-        #     trainable=True
-        # )
+        W_a = tf.get_variable(
+            name="attention_w_a",
+            shape=(inputs.get_shape()[-1], inputs.get_shape()[-1]),
+            initializer=tf.random_uniform_initializer(-0.1, 0.1),
+            trainable=True
+        )
 
         hs = tf.unstack(inputs[:, :-1, :], axis=0)
         ct = tf.unstack(inputs[:, -1:, :], axis=0)
@@ -346,18 +252,18 @@ class Model_KG4Text():
         align = list()
 
         for i in range(inputs.get_shape()[0]):
-            # align.append(tf.matmul(
-            #     a=tf.matmul(
-            #         a=hs[i],
-            #         b=W_a
-            #    ),
-            #     b=tf.transpose(ct[i])
-            # ))
             align.append(tf.matmul(
-                a=hs[i],
-                b=ct[i],
-                transpose_b=True
+                a=tf.matmul(
+                    a=hs[i],
+                    b=W_a
+               ),
+                b=tf.transpose(ct[i])
             ))
+            # align.append(tf.matmul(
+            #     a=hs[i],
+            #     b=ct[i],
+            #     transpose_b=True
+            # ))
 
         align = tf.stack(align, axis=0)
         align = tf.squeeze(align, axis=[-1])
@@ -367,6 +273,31 @@ class Model_KG4Text():
         align = tf.expand_dims(align, axis=-1)
 
         return align
+
+    def __attention_align_2__(self, word, classlabel, kgvector):
+
+        norm_word = tf.nn.l2_normalize(word, dim=-1)
+        norm_class = tf.nn.l2_normalize(classlabel, dim=-1)
+
+        align_word = tf.reduce_mean(tf.multiply(norm_word, norm_class), axis=-1)
+        align_word = tf.expand_dims(align_word, axis=-1)
+
+        W_kg = tf.get_variable(
+            name="attention_w_kg",
+            shape=(kgvector.get_shape()[-1], 1),
+            initializer=tf.random_uniform_initializer(-0.1, 0.1),
+            trainable=True
+        )
+        align_kg = tf.matmul(
+            a=tf.reshape(kgvector, shape=[-1, 200]),
+            b=W_kg
+        )
+        align_kg = tf.reshape(align_kg, shape=[-1, self.max_length, 1])
+
+        align_score = align_kg + align_word
+
+        align_score = tf.slice(align_score, begin=[0, 0, 0], size=[-1, self.max_length - 1, 1])
+        return align_score
 
     def __attention_h_star__(self, inputs, align):
 
@@ -383,7 +314,6 @@ class Model_KG4Text():
 
         return h_star
 
-
     def __create_loss__(self):
         self.train_loss = tl.cost.binary_cross_entropy(
             output=self.train_net.outputs,
@@ -396,10 +326,10 @@ class Model_KG4Text():
             output=self.test_net.outputs,
             target=self.category_logits,
         )
-        self.infer_loss = tl.cost.binary_cross_entropy(
-            output=self.infer_net.outputs,
-            target=self.category_logits_infer,
-        )
+        # self.infer_loss = tl.cost.binary_cross_entropy(
+        #     output=self.infer_net.outputs,
+        #     target=self.category_logits_infer,
+        # )
 
     def __create_training_op__(self):
         self.global_step = tf.placeholder(
@@ -421,7 +351,7 @@ class Model_KG4Text():
 if __name__ == "__main__":
     model = Model_KG4Text(
         model_name="text_encoding",
-        start_learning_rate=0.0004,
+        start_learning_rate=0.001,
         decay_rate=0.8,
         decay_steps=1000
     )

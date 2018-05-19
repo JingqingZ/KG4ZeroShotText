@@ -1,6 +1,12 @@
 
 import os
 import numpy as np
+from datetime import datetime
+
+time_fmt = "%Y-%m-%d-%H-%M-%S"
+
+def now2string(fmt="%Y-%m-%d-%H-%M-%S"):
+    return datetime.now().strftime(fmt)
 
 def make_dirlist(dirlist):
     for dir in dirlist:
@@ -27,6 +33,10 @@ def get_precision_recall_f1(prediction, ground_truth): # 1D data
     return P, R, F1
 
 def get_statistics(prediction, ground_truth, single_label_pred=False):
+
+    num_data_of_class_gt = np.sum(ground_truth, axis=0)
+    num_data_of_class_pred = np.sum(prediction, axis=0)
+
     assert prediction.shape == ground_truth.shape
     num_instance = prediction.shape[0]
     num_class = prediction.shape[1]
@@ -42,9 +52,9 @@ def get_statistics(prediction, ground_truth, single_label_pred=False):
     recallList = []
     for j in range(num_class): # Calculate Precision and Recall for class j
         p, r, _ = get_precision_recall_f1(prediction[:,j], ground_truth[:,j])
-        if p is not None:
+        if num_data_of_class_pred[j] > 0 and p is not None:
             precisionList.append(p)
-        if r is not None:
+        if num_data_of_class_gt[j] > 0 and r is not None:
             recallList.append(r)
     macroP = np.mean(np.array(precisionList))
     macroR = np.mean(np.array(recallList))
