@@ -108,8 +108,15 @@ class Model_KG4Text():
                 name="reshape_kg_2"
             )
 
+            # TODO: kg_vector for training
+            # net_in = ConcatLayer(
+            #      [net_word_embed, net_class_label_embed, net_kg],
+            #     concat_dim=-1,
+            #     name='concat_kg_word'
+            # )
+
             net_in = ConcatLayer(
-                [net_word_embed, net_class_label_embed, net_kg],
+                [net_word_embed, net_class_label_embed],
                 concat_dim=-1,
                 name='concat_kg_word'
             )

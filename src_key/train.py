@@ -162,6 +162,10 @@ class Controller_KG4Text(Controller):
         return not class_id in self.unseen_class
 
     def get_kg_vector_given_class(self, encode_text_seqs, class_id_list):
+
+        # TODO: remove to add kg_vector for training
+        return np.zeros((config.batch_size, self.model.max_length, config.kg_embedding_dim))
+
         assert encode_text_seqs.shape[0] == class_id_list.shape[0]
 
         kg_vector_list = list()
