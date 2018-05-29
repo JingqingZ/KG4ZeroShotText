@@ -157,6 +157,12 @@ class Controller_KG4Text(Controller):
             self.unseen_class = [range(unseen_class_tuple[0], unseen_class_tuple[1] + 1)]
             print("%d/%d fold class %s" % (current_fold, num_fold, self.unseen_class))
 
+    def get_seen_class(self):
+        seen_class = list()
+        for key in self.class_dict.keys():
+            if key not in self.unseen_class:
+                seen_class.append(key)
+        return seen_class
 
     def check_seen(self, class_id):
         return not class_id in self.unseen_class
@@ -164,7 +170,7 @@ class Controller_KG4Text(Controller):
     def get_kg_vector_given_class(self, encode_text_seqs, class_id_list):
 
         # TODO: remove to add kg_vector for training
-        return np.zeros((config.batch_size, self.model.max_length, config.kg_embedding_dim))
+        # return np.zeros((config.batch_size, self.model.max_length, config.kg_embedding_dim))
 
         assert encode_text_seqs.shape[0] == class_id_list.shape[0]
 
@@ -277,7 +283,11 @@ class Controller_KG4Text(Controller):
     def prepro_encode(self, textlist):
         newtextlist = list()
         for idx, text in enumerate(textlist):
-            newtextlist.append(text[1:-1] + [self.vocab.pad_id])
+            if len(text[1:-1]) > self.model.max_length:
+                startid = 1 + randint(0, len(text[1:-1]) - self.model.max_length)
+            else:
+                startid = 1
+            newtextlist.append(text[startid:-1] + [self.vocab.pad_id])
         newtextlist = tl.prepro.pad_sequences(newtextlist, maxlen=self.model.max_length, dtype='int64', padding='post', truncating='post', value=self.vocab.pad_id)
         for idx, text in enumerate(newtextlist):
             newtextlist[idx] = text[:-1] + [vocab.pad_id]
@@ -317,28 +327,34 @@ class Controller_KG4Text(Controller):
         if max_train_steps is not None and max_train_steps < train_steps:
             train_steps = max_train_steps
 
+        seen_class_list = self.get_seen_class()
+        print("Seen classes: %s" % seen_class_list)
+
         for cstep in range(train_steps):
             global_step = cstep + epoch * train_steps
 
             # category_logits = [1 if randint(0, config.negative_sample) == 0 else 0 for _ in range(config.batch_size)]
-            category_logits = [1 if randint(0, 7 + int(epoch // 2)) == 0 else 0 for _ in range(config.batch_size)]
+            # category_logits = [1 if randint(0, config.negative_sample + epoch * 2) == 0 else 0 for _ in range(config.batch_size)]
+            category_logits = [1 if randint(0, config.negative_sample + epoch * 3) == 0 else 0 for _ in range(config.batch_size)]
+
             true_class_id_mini = [class_list[idx] for idx in train_order[cstep * config.batch_size : (cstep + 1) * config.batch_size]]
             text_seqs_mini = [text_seqs[idx] for idx in train_order[cstep * config.batch_size : (cstep + 1) * config.batch_size]]
 
             # random text
-            category_logits = category_logits[:-3] + [0, 0, 0]
             true_class_id_mini = true_class_id_mini[:-3]  + [-1, -1, -1]
             text_seqs_mini = text_seqs_mini[:-3] + self.get_random_text(3)
 
             encode_seqs_id_mini, encode_seqs_mat_mini = self.prepro_encode(text_seqs_mini)
 
-            # print("process_1", time.time() - step_time)
+            # for class_id in seen_class_list:
+
+            category_logits = category_logits[:-3] + [0, 0, 0]
             class_id_mini = self.get_random_class(true_class_id_mini, category_logits)
-            # print("process_2", time.time() - step_time)
+            # class_id_mini = np.array([class_id] * config.batch_size)
+            # category_logits = [int(class_id_mini[i] == true_class_id_mini[i]) for i in range(config.batch_size)]
+
             class_label_embed_mini = self.get_class_label_embed(class_id_mini)
-            # print("process_3", time.time() - step_time)
             kg_vector_seqs_mini = self.get_kg_vector_given_class(encode_seqs_id_mini, class_id_mini)
-            # print("process_4", time.time() - step_time)
 
             # np.set_printoptions(threshold=np.nan)
             # print("encode", encode_seqs_mat_mini[:2, :20, :10])
@@ -523,12 +539,15 @@ class Controller_KG4Text(Controller):
 
         for epoch in range(train_epoch + 1):
 
-            self.__train__(
-                global_epoch,
-                train_text_seqs,
-                train_class_list,
-                max_train_steps=5000
-            )
+            # TODO: apply constrain on training set size
+            for _ in range(max(4 - 10 * global_epoch, 2)):
+                print("epoch %d %d" % (global_epoch, _))
+                self.__train__(
+                    global_epoch,
+                    train_text_seqs,
+                    train_class_list,
+                    max_train_steps=3000
+                )
 
             if global_epoch > self.base_epoch and global_epoch % save_test_per_epoch == 0:
                 self.save_model(
@@ -583,7 +602,6 @@ class Controller_KG4Text(Controller):
                 path=self.model_save_dir,
                 global_step=last_save_epoch
             )
-
 
         seen_test_text_seqs, seen_test_class_list = self.get_text_of_seen_class(test_text_seqs, test_class_list)
         unseen_test_text_seqs, unseen_test_class_list = self.get_text_of_unseen_class(test_text_seqs, test_class_list)
@@ -690,18 +708,19 @@ if __name__ == "__main__":
 
     for i in range(10):
 
-        unseen_percentage = 0.5
+        unseen_percentage = 0.25
         max_length = 50
 
         with tf.Graph().as_default() as graph:
             tl.layers.clear_layers_name()
 
             mdl = model.Model_KG4Text(
-                model_name="selected_zhang15_dbpedia_kg3_random%d_unseen%.2f_max%d_cnn_negative%d_randomtext" \
-                           % (i + 1, unseen_percentage, max_length, -1),
-                start_learning_rate=0.0004,
+                # model_name="selected_zhang15_dbpedia_kg3_random%d_unseen%.2f_max%d_cnn_negative%dincrease2_randomtext" \
+                model_name="selected_zhang15_dbpedia_kg3_random%d_unseen%.2f_max%d_cnn_negative%dincrease3_randomtext" \
+                               % (i + 1, unseen_percentage, max_length, config.negative_sample),
+                start_learning_rate=0.0001,
                 decay_rate=0.8,
-                decay_steps=4e3,
+                decay_steps=5e3,
                 vocab_size=20000,
                 max_length=max_length
             )
@@ -717,10 +736,10 @@ if __name__ == "__main__":
                 random_percentage=unseen_percentage,
                 base_epoch=-1,
             )
-            ctl.controller(train_text_seqs, train_class_list, test_text_seqs, test_class_list, train_epoch=10)
+            ctl.controller(train_text_seqs, train_class_list, test_text_seqs, test_class_list, train_epoch=5)
             # unseen_class_list = [4, 2, 11]
             # ctl.controller4test(test_text_seqs, test_class_list, unseen_class_list, base_epoch=5)
-            ctl.controller4test(test_text_seqs, test_class_list, unseen_class_list=ctl.unseen_class, base_epoch=10)
+            ctl.controller4test(test_text_seqs, test_class_list, unseen_class_list=ctl.unseen_class, base_epoch=5)
 
             ctl.sess.close()
 
@@ -910,17 +929,17 @@ if __name__ == "__main__":
     for i in range(10):
 
         unseen_percentage = 0.25
-        max_length = 200
+        max_length = 100
 
         with tf.Graph().as_default() as graph:
             tl.layers.clear_layers_name()
 
             mdl = model.Model_KG4Text(
-                model_name="selected_news20_kg3_random%d_unseen%.2f_max%d_cnn_negative%d_randomtext" \
-                           % (i + 1, unseen_percentage, max_length, -1),
-                start_learning_rate=0.0004,
-                decay_rate=0.8,
-                decay_steps=500,
+                model_name="selected_news20_kg3_random%d_unseen%.2f_max%d_cnn_negative%dincrease2_randomtext" \
+                           % (i + 1, unseen_percentage, max_length, config.negative_sample),
+                start_learning_rate=0.0001,
+                decay_rate=0.6,
+                decay_steps=300,
                 vocab_size=20000,
                 max_length=max_length,
                 hidden_dim=512,
@@ -937,11 +956,11 @@ if __name__ == "__main__":
                 random_percentage=unseen_percentage,
                 base_epoch=-1,
             )
-            ctl.controller(train_text_seqs, train_class_list, test_text_seqs, test_class_list, train_epoch=20)
+            ctl.controller(train_text_seqs, train_class_list, test_text_seqs, test_class_list, train_epoch=10)
             # unseen_class_list = [35, 29, 31, 19, 15, 25, 11, 50, 33, 46, 3, 36]
             # unseen_class_list = [10, 17, 14, 11, 8]
             # ctl.controller4test(test_text_seqs, test_class_list, unseen_class_list, base_epoch=20)
-            ctl.controller4test(test_text_seqs, test_class_list, unseen_class_list=ctl.unseen_class, base_epoch=20)
+            ctl.controller4test(test_text_seqs, test_class_list, unseen_class_list=ctl.unseen_class, base_epoch=10)
 
             ctl.sess.close()
     '''

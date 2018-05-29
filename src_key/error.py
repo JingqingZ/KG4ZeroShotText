@@ -1,7 +1,7 @@
 import numpy as np
 
 import utils
-
+import config
 
 def calculate_error(filename):
     data = np.load(filename)
@@ -160,6 +160,95 @@ def classify_single_label(filename):
     return out_pred_seen, out_pred_unseen, pred_both, gt_both
 
 
+def classify_single_label2(filename):
+    print("single label")
+    data = np.load(filename)
+    # data = np.load("../results/key_zhang15_dbpedia_kg3_random%d_unseen0.25/logs/test_2.npz" % (f + 1))
+    # data = np.load("../results/key_news20_kg3_random%d_unseen0.25/logs/test_5_max300_full.npz" % (f + 1))
+    # data = np.load("../results/key_zhang15_dbpedia_kg3_random%d_unseen0.25_max100/logs/test_5.npz" % (f + 1))
+    # data = np.load("../results/key_zhang15_dbpedia_kg3_random%d_unseen0.25_max100_cnn/logs/test_4.npz" % (f + 1))
+
+    # print(data["pred_seen"].shape)
+    # print(data["pred_unseen"].shape)
+
+    seen_class = np.nonzero(np.sum(data["gt_seen"], axis=0))[0]
+    unseen_class = np.nonzero(np.sum(data["gt_unseen"], axis=0))[0]
+    print(seen_class, unseen_class)
+
+    pred_unseen = data["pred_unseen"]
+    for pidx, pred in enumerate(pred_unseen):
+        maxconf = -1
+        argmax = -1
+        for class_idx in range(len(pred)):
+            if pred[class_idx] > maxconf and class_idx in unseen_class:
+                argmax = class_idx
+                maxconf = pred[class_idx]
+        assert argmax in unseen_class
+        pred_unseen[pidx] = 0
+        pred_unseen[pidx, argmax] = 1
+    out_pred_unseen = pred_unseen
+
+    stats1 = utils.get_statistics(pred_unseen, data["gt_unseen"], single_label_pred=True)
+    try:
+        print("uns tra: %s" % (utils.dict_to_string_4_print(stats1)))
+    except:
+        print("uns tra: error")
+
+    pred_seen = data["pred_seen"]
+    for pidx, pred in enumerate(pred_seen):
+        maxconf = -1
+        argmax = -1
+        for class_idx in range(len(pred)):
+            if pred[class_idx] > maxconf and class_idx in seen_class:
+                argmax = class_idx
+                maxconf = pred[class_idx]
+        assert argmax in seen_class
+        pred_seen[pidx] = 0
+        pred_seen[pidx, argmax] = 1
+    out_pred_seen = pred_seen
+
+    stats2 = utils.get_statistics(pred_seen, data["gt_seen"], single_label_pred=True)
+    try:
+        print("see tra: %s" % (utils.dict_to_string_4_print(stats2)))
+    except:
+        print("see tra: error")
+
+
+    pred_unseen = data["pred_unseen"]
+    for pidx, pred in enumerate(pred_unseen):
+        class_idx = np.argmax(pred)
+        pred_unseen[pidx] = 0
+        pred_unseen[pidx, class_idx] = 1
+
+    stats3 = utils.get_statistics(pred_unseen, data["gt_unseen"], single_label_pred=True)
+    try:
+        print("uns gen: %s" % (utils.dict_to_string_4_print(stats3)))
+    except:
+        print("uns gen: error")
+
+    pred_seen = data["pred_seen"]
+    for pidx, pred in enumerate(pred_seen):
+        class_idx = np.argmax(pred)
+        pred_seen[pidx] = 0
+        pred_seen[pidx, class_idx] = 1
+
+    stats4 = utils.get_statistics(pred_seen, data["gt_seen"], single_label_pred=True)
+    try:
+        print("see gen: %s" % (utils.dict_to_string_4_print(stats4)))
+    except:
+        print("see gen: error")
+
+    gt_both = np.concatenate([data["gt_seen"], data["gt_unseen"]], axis=0)
+    pred_both = np.concatenate([pred_seen, pred_unseen], axis=0)
+
+    stats5 = utils.get_statistics(pred_both, gt_both, single_label_pred=True)
+    try:
+        print("all gen: %s" % (utils.dict_to_string_4_print(stats5)))
+    except:
+        print("all gen: error")
+
+    return pred_both, stats1, stats2, stats3, stats4, stats5
+
 def rejection_single_label(filename, printopt=False):
     np.set_printoptions(threshold=np.nan)
     print("rejecting")
@@ -293,45 +382,237 @@ def reject_then_classify_single_label(filename, pred_reject):
             pred_both[idx, argmax] = 1
 
     stats = utils.get_statistics(pred_both, gt_both, True)
+    stats_seen = utils.get_statistics(pred_both[:data["gt_seen"].shape[0]], gt_both[:data["gt_seen"].shape[0]], True)
+    stats_unseen = utils.get_statistics(pred_both[data["gt_seen"].shape[0] :], gt_both[data["gt_seen"].shape[0] :], True)
+    assert pred_both.shape[0] == data["gt_seen"].shape[0] + data["gt_unseen"].shape[0]
     try:
-        print("all new: %s" % (utils.dict_to_string_4_print(stats)))
+        print("uns %s" % (utils.dict_to_string_4_print(stats_unseen)))
+        print("see %s" % (utils.dict_to_string_4_print(stats_seen)))
+        print("all %s" % (utils.dict_to_string_4_print(stats)))
     except:
         print("all new: error")
+    return None, stats, stats_seen, stats_unseen
+
+def classify_adjust_single_label(filename, class_distance_matrix):
+    print("adjust single label")
+    data = np.load(filename)
+
+    seen_class = np.nonzero(np.sum(data["gt_seen"], axis=0))[0]
+    unseen_class = np.nonzero(np.sum(data["gt_unseen"], axis=0))[0]
+    # print("seen", seen_class, seen_class.shape)
+    # print("unseen", unseen_class, unseen_class.shape)
+
+    num_seen_class = seen_class.shape[0] + 1
+
+    all_class = np.concatenate([seen_class, unseen_class], axis=0)
+
+    print(seen_class, unseen_class)
+
+    for t in range(50000, 100000, 1000):
+        threshold = t / 100000
+
+        pred_seen = data['pred_seen']
+        pred_unseen = data['pred_unseen']
+        pred = np.concatenate([pred_seen, pred_unseen], axis = 0)
+
+        gt_seen = data['gt_seen']
+        gt_unseen = data['gt_unseen']
+        gt = np.concatenate([gt_seen, gt_unseen], axis=0)
+
+
+        pred_choose_ans_from = np.max(pred[:, seen_class], axis = 1) > threshold
+        # pred_choose_ans_from[data["gt_seen"].shape[0]:] = False
+        pred_ans_seen_original = seen_class[np.argmax(pred[:, seen_class], axis = 1)]
+        pred_ans_unseen_adjusted = unseen_class[np.argmax(adjust_unseen_prob(pred, unseen_class, class_distance_matrix), axis=1)]
+        pred_final = (pred_choose_ans_from * pred_ans_seen_original) + ((1-pred_choose_ans_from) * pred_ans_unseen_adjusted)
+
+        pred_matrix = np.zeros(pred.shape)
+        for i in range(len(pred_matrix)):
+            pred_matrix[i][pred_final[i]] = 1
+
+
+
+        stats = utils.get_statistics(pred_matrix, gt, True)
+        stats_seen = utils.get_statistics(pred_matrix[:data["gt_seen"].shape[0]], gt[:data["gt_seen"].shape[0]],
+                                          True)
+        stats_unseen = utils.get_statistics(pred_matrix[data["gt_seen"].shape[0]:],
+                                            gt[data["gt_seen"].shape[0]:], True)
+        try:
+            print("uns threshold: %.5f:  %s" % (threshold, utils.dict_to_string_4_print(stats_unseen)))
+            print("see threshold: %.5f:  %s" % (threshold, utils.dict_to_string_4_print(stats_seen)))
+            print("all threshold: %.5f:  %s" % (threshold, utils.dict_to_string_4_print(stats)))
+        except:
+            print("threshold: %.5f: error" % (threshold))
+        return pred_matrix, stats, stats_seen, stats_unseen
+
+
+def classify_without_adjust_single_label(filename, class_distance_matrix):
+    print("without adjust single label")
+    data = np.load(filename)
+
+    seen_class = np.nonzero(np.sum(data["gt_seen"], axis=0))[0]
+    unseen_class = np.nonzero(np.sum(data["gt_unseen"], axis=0))[0]
+    # print("seen", seen_class, seen_class.shape)
+    # print("unseen", unseen_class, unseen_class.shape)
+
+    num_seen_class = seen_class.shape[0] + 1
+
+    all_class = np.concatenate([seen_class, unseen_class], axis=0)
+
+    print(seen_class, unseen_class)
+
+    for t in range(50000, 100000, 1000):
+        threshold = t / 100000
+
+        pred_seen = data['pred_seen']
+        pred_unseen = data['pred_unseen']
+        pred = np.concatenate([pred_seen, pred_unseen], axis = 0)
+
+        gt_seen = data['gt_seen']
+        gt_unseen = data['gt_unseen']
+        gt = np.concatenate([gt_seen, gt_unseen], axis=0)
+
+
+        pred_choose_ans_from = np.max(pred[:, seen_class], axis = 1) > threshold
+        pred_ans_seen_original = seen_class[np.argmax(pred[:, seen_class], axis = 1)]
+        pred_ans_unseen_adjusted = unseen_class[np.argmax(pred[:, unseen_class], axis=1)]
+        pred_final = (pred_choose_ans_from * pred_ans_seen_original) + ((1-pred_choose_ans_from) * pred_ans_unseen_adjusted)
+
+        pred_matrix = np.zeros(pred.shape)
+        for i in range(len(pred_matrix)):
+            pred_matrix[i][pred_final[i]] = 1
+
+
+
+        stats = utils.get_statistics(pred_matrix, gt, True)
+        stats_seen = utils.get_statistics(pred_matrix[:data["gt_seen"].shape[0]], gt[:data["gt_seen"].shape[0]],
+                                          True)
+        stats_unseen = utils.get_statistics(pred_matrix[data["gt_seen"].shape[0]:],
+                                            gt[data["gt_seen"].shape[0]:], True)
+        try:
+            print("uns threshold: %.5f:  %s" % (threshold, utils.dict_to_string_4_print(stats_unseen)))
+            print("see threshold: %.5f:  %s" % (threshold, utils.dict_to_string_4_print(stats_seen)))
+            print("all threshold: %.5f:  %s" % (threshold, utils.dict_to_string_4_print(stats)))
+        except:
+            print("threshold: %.5f: error" % (threshold))
+        return pred_matrix, stats, stats_seen, stats_unseen
+
+def adjust_unseen_prob(prob_matrix, unseen_class_id, class_distance_matrix):
+    total_class = len(prob_matrix[0])
+
+    adjusted_unseen_prob = []
+    for usid in unseen_class_id:
+        seen_class_id = [i for i in range(total_class) if
+                         i not in unseen_class_id or usid == i]  # including current unseen
+
+        seen_prob = prob_matrix[:, seen_class_id]
+
+        weight_vector = 1 / class_distance_matrix[usid, :]
+        weight_vector = weight_vector[seen_class_id]
+        weight_vector = normalise(weight_vector)
+
+
+        ans = np.zeros(len(prob_matrix))
+        for i in range(len(seen_class_id)):
+            ans += weight_vector[i] * seen_prob[:, i]
+        adjusted_unseen_prob.append(ans)
+
+    return np.array(adjusted_unseen_prob).T
+
+
+def softmax(x):
+    """Compute softmax values for each sets of scores in x."""
+    return np.exp(x) / np.sum(np.exp(x), axis=0)
+
+
+def normalise(x):
+    return x / np.sum(x, axis=0)
+
 
 if __name__ == "__main__":
     reject_list = list()
-    for i in range(1, 11):
+    num = 10
+    for i in range(num):
         # calculate_error("../results/key_zhang15_dbpedia_4of4/logs/test_5_att.npz")
         # filename = "../results/key_zhang15_dbpedia_kg3_random%d_unseen0.25_max100_cnn_negative%d/logs/test_%d.npz" \
         #            % (5, 7, 10)
-        filename = "../results/selected_zhang15_dbpedia_kg3_random%d_unseen0.25_max50_cnn_negative-1_randomtext/logs/test_10.npz" \
-                    % (i)
+        # filename = "../results/selected_zhang15_dbpedia_kg3_random%d_unseen0.25_max50_cnn_negative9increase2_randomtext/logs/test_5.npz" \
+        # filename = "../results/selected_zhang15_dbpedia_noclasslabel_random%d_unseen0.25_max50_cnn_negative9increase2_randomtext/logs/test_5.npz" \
+        # filename = "../results//selected_news20_kg3_random%d_unseen0.25_max100_cnn_negative2increase2_randomtext/logs/test_10.npz" \
+        # filename = "../results/selected_zhang15_dbpedia_kg3_random%d_unseen0.25_max50_cnn_negative9increase2_randomtext/logs/test_5.npz" \
+        # filename = "../results/selected_zhang15_dbpedia_kg3_random%d_unseen0.25_max50_cnn_negative9increase3_randomtext/logs/test_5.npz" \
+        # filename = "../results/selected_news20_kg3_random%d_unseen0.25_max100_cnn_negative2increase2_randomtext/logs/test_10.npz" \
+        # filename = "../results/selected_zhang15_dbpedia_nokg_random%d_unseen0.25_max50_cnn_negative-1_randomtext/logs/test_10.npz" \
+        # filename = "../results/selected_zhang15_dbpedia_noclasslabel_random%d_unseen0.25_max50_cnn_negative9increase2_randomtext/logs/test_5.npz" \
+        filename = "../results/selected_zhang15_dbpedia_nokg_random%d_unseen0.25_max50_cnn_negative-1_randomtext/logs/test_10.npz" \
+                   % (i + 1)
 
         # pred_seen, pred_unseen, pred_both, gt_both = classify_single_label(filename)
         # classify_multiple_label(filename)
-        pred_reject = rejection_single_label(filename)
-        # reject_then_classify_single_label(filename, pred_reject)
-        reject_list.append(pred_reject)
+        # pred_reject = rejection_single_label(filename)
+        # pred_reject = reject_then_classify_single_label(filename, pred_reject[0])
+        # reject_list.append(pred_reject)
 
-    pred_dict = [dict(), dict(), dict()]
+        class_distance_matrix = np.loadtxt('../data/zhang15/dbpedia_csv/class_distance.txt')
+        # class_distance_matrix = np.loadtxt(config.news20_dir + 'class_distance_20newsgroups.txt')
+        # class_distance_matrix = np.loadtxt('../data/zhang15/dbpedia_csv/class_distance_glove.txt')
+        classify_adjust = classify_adjust_single_label(filename, class_distance_matrix)
+        # classify_noadjust = classify_without_adjust_single_label(filename, None)
+        # reject_list.append(classify_noadjust)
+        reject_list.append(classify_adjust)
+
+        # classify = classify_single_label2(filename)
+        # reject_list.append(classify)
+
+    pred_dict = list()
+    for sidx in range(1, len(reject_list[0])):
+        pred_dict.append(dict())
     for reject in reject_list:
-        for sidx in range(1, 4):
+        for sidx in range(1, len(reject_list[0])):
             for mea in reject[sidx]:
                 if mea not in pred_dict[sidx - 1]:
                     pred_dict[sidx - 1][mea] = 0
                 pred_dict[sidx - 1][mea] += reject[sidx][mea]
 
-
-    for sidx in range(3):
+    for sidx in range(len(pred_dict)):
         for mea in pred_dict[sidx]:
-            pred_dict[sidx][mea] /= 10
+            pred_dict[sidx][mea] /= num
+            pred_dict[sidx][mea] = 1 - pred_dict[sidx][mea]
 
-    print("average overall ============================")
-    print(utils.dict_to_string_4_print(pred_dict[0]))
-    print("average seen ============================")
-    print(utils.dict_to_string_4_print(pred_dict[1]))
-    print("average unseen ============================")
-    print(utils.dict_to_string_4_print(pred_dict[2]))
+    # pred_dict = [dict(), dict(), dict(), dict(), dict()]
+    # for reject in reject_list:
+    #     for sidx in range(1, 6):
+    #         for mea in reject[sidx]:
+    #             if mea not in pred_dict[sidx - 1]:
+    #                 pred_dict[sidx - 1][mea] = 0
+    #             pred_dict[sidx - 1][mea] += reject[sidx][mea]
+    #
+    # for sidx in range(5):
+    #     for mea in pred_dict[sidx]:
+    #         pred_dict[sidx][mea] /= 10
+
+    # print("average overall ============================")
+    # print(utils.dict_to_string_4_print(pred_dict[0]))
+    # print("average seen ============================")
+    # print(utils.dict_to_string_4_print(pred_dict[1]))
+    # print("average unseen ============================")
+    # print(utils.dict_to_string_4_print(pred_dict[2]))
+
+    for pred in pred_dict:
+        print(utils.dict_to_string_4_print(pred))
+
+
+    # print("average uns tra ============================")
+    # print(utils.dict_to_string_4_print(pred_dict[0]))
+    # print("average see tra ============================")
+    # print(utils.dict_to_string_4_print(pred_dict[1]))
+    # print("average uns gen ============================")
+    # print(utils.dict_to_string_4_print(pred_dict[2]))
+    # print("average see gen ============================")
+    # print(utils.dict_to_string_4_print(pred_dict[3]))
+    # print("average all gen ============================")
+    # print(utils.dict_to_string_4_print(pred_dict[4]))
+
 
     pass
 

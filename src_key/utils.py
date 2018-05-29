@@ -79,7 +79,8 @@ def get_statistics(prediction, ground_truth, single_label_pred=False):
 
 
 def dict_to_string_4_print(dict):
-   return ', '.join(['%s: %.3f' % (key, dict[key]) for key in dict])
+    keys = sorted(dict.keys())
+    return ', '.join(['%s: %.3f' % (key, dict[key]) for key in keys])
 
 
 if __name__ == "__main__":

@@ -8,7 +8,7 @@ train_epoch = 100
 batch_size = 32
 max_length = 50
 
-negative_sample = 7
+negative_sample = 9
 
 word_embedding_dim = 200
 hidden_dim = 256
