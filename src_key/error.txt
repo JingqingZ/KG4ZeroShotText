@@ -1,0 +1,7 @@
+1
+1 unseen
+threshold: 0.50000: macro-precision: 0.094, macro-recall: 0.269, micro-F1: 0.150, micro-precision: 0.104, micro-recall: 0.270, macro-F1: 0.140, accuracy: 0.847
+1 seen
+threshold: 0.50000: macro-precision: 0.345, macro-recall: 0.924, micro-F1: 0.511, micro-precision: 0.353, micro-recall: 0.926, macro-F1: 0.502, accuracy: 0.911
+1 both
+threshold: 0.50000: macro-precision: 0.316, macro-recall: 0.760, micro-F1: 0.417, micro-precision: 0.288, micro-recall: 0.755, macro-F1: 0.447, accuracy: 0.895

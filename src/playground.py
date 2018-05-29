@@ -42,8 +42,13 @@ def load_zhang15_dbpedia_npz():
     data = np.load(config.zhang15_dbpedia_test_state_npz_path)
     print(data["state"].shape)
 
+def load_logs():
+    data = np.load("../results/key_zhang15_dbpedia_4of4/logs/test_1_kg.npz")
+    print(data["kg_vector_seen"].shape)
+
 if __name__ == "__main__":
     # combine_zhang15_dbpedia_train_test()
-    load_zhang15_dbpedia_npz()
+    # load_zhang15_dbpedia_npz()
     # combine_zhang15_yahoo_train_test()
+    load_logs()
     pass
