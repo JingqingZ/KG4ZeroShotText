@@ -334,8 +334,8 @@ class Controller_KG4Text(Controller):
             global_step = cstep + epoch * train_steps
 
             # category_logits = [1 if randint(0, config.negative_sample) == 0 else 0 for _ in range(config.batch_size)]
-            # category_logits = [1 if randint(0, config.negative_sample + epoch * 2) == 0 else 0 for _ in range(config.batch_size)]
-            category_logits = [1 if randint(0, config.negative_sample + epoch * 3) == 0 else 0 for _ in range(config.batch_size)]
+            category_logits = [1 if randint(0, config.negative_sample + epoch * 2) == 0 else 0 for _ in range(config.batch_size)]
+            # category_logits = [1 if randint(0, config.negative_sample + epoch * 3) == 0 else 0 for _ in range(config.batch_size)]
 
             true_class_id_mini = [class_list[idx] for idx in train_order[cstep * config.batch_size : (cstep + 1) * config.batch_size]]
             text_seqs_mini = [text_seqs[idx] for idx in train_order[cstep * config.batch_size : (cstep + 1) * config.batch_size]]
@@ -647,6 +647,7 @@ class Controller_KG4Text(Controller):
 if __name__ == "__main__":
 
     # DBpedia
+    '''
     vocab = dataloader.build_vocabulary_from_full_corpus(
         config.zhang15_dbpedia_full_data_path, config.zhang15_dbpedia_vocab_path, column="selected", force_process=False,
         min_word_count=55
@@ -742,9 +743,9 @@ if __name__ == "__main__":
             ctl.controller4test(test_text_seqs, test_class_list, unseen_class_list=ctl.unseen_class, base_epoch=5)
 
             ctl.sess.close()
+    '''
 
     # chen14 dataset
-
     '''
     vocab = dataloader.build_vocabulary_from_full_corpus(
         config.chen14_full_data_path, config.chen14_vocab_path, column="text", force_process=False
@@ -830,7 +831,6 @@ if __name__ == "__main__":
     '''
 
     # 20 news
-    '''
     vocab = dataloader.build_vocabulary_from_full_corpus(
         config.news20_full_data_path, config.news20_vocab_path, column="selected", force_process=False,
         min_word_count=10
@@ -963,7 +963,6 @@ if __name__ == "__main__":
             ctl.controller4test(test_text_seqs, test_class_list, unseen_class_list=ctl.unseen_class, base_epoch=10)
 
             ctl.sess.close()
-    '''
 
     pass
 

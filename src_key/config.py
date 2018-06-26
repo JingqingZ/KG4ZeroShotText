@@ -20,7 +20,7 @@ kg_embedding_dim = 400 # kg_vector hop=2
 prepro_min_word_count = 100 # arxiv
 prepro_max_sentence_length = max_length
 
-cstep_print = 500
+cstep_print = 50
 
 ##################################
 
