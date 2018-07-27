@@ -540,7 +540,7 @@ class Controller_KG4Text(Controller):
         for epoch in range(train_epoch + 1):
 
             # TODO: apply constrain on training set size
-            for _ in range(max(4 - 10 * global_epoch, 2)):
+            for _ in range(max(2 - 10 * global_epoch, 2)):
                 print("epoch %d %d" % (global_epoch, _))
                 self.__train__(
                     global_epoch,
@@ -585,8 +585,11 @@ class Controller_KG4Text(Controller):
                     kg_vector_seen=kg_vector_seen,
                     kg_vector_unseen=kg_vector_unseen,
                     )
-                error.rejection_single_label(self.log_save_dir + "test_%d.npz" % global_epoch)
-                error.classify_single_label(self.log_save_dir + "test_%d.npz" % global_epoch)
+                # error.rejection_single_label(self.log_save_dir + "test_%d.npz" % global_epoch)
+                # error.classify_single_label(self.log_save_dir + "test_%d.npz" % global_epoch)
+                error.classify_single_label2(self.log_save_dir + "test_%d.npz" % global_epoch)
+                class_distance_matrix = np.loadtxt(config.zhang15_dbpedia_dir + 'class_distance.txt')
+                error.classify_adjust_single_label(self.log_save_dir + "test_%d.npz" % global_epoch, class_distance_matrix)
 
             global_epoch += 1
 
@@ -641,15 +644,18 @@ class Controller_KG4Text(Controller):
             kg_vector_unseen=kg_vector_unseen,
         )
 
-        error.rejection_single_label(self.log_save_dir + "test_%d.npz" % global_epoch)
-        error.classify_single_label(self.log_save_dir + "test_%d.npz" % global_epoch)
+        # error.rejection_single_label(self.log_save_dir + "test_%d.npz" % global_epoch)
+        # error.classify_single_label(self.log_save_dir + "test_%d.npz" % global_epoch)
+        error.classify_single_label2(self.log_save_dir + "test_%d.npz" % global_epoch)
+        class_distance_matrix = np.loadtxt(config.zhang15_dbpedia_dir + 'class_distance.txt')
+        error.classify_adjust_single_label(self.log_save_dir + "test_%d.npz" % global_epoch, class_distance_matrix)
 
 if __name__ == "__main__":
 
     # DBpedia
-    '''
     vocab = dataloader.build_vocabulary_from_full_corpus(
-        config.zhang15_dbpedia_full_data_path, config.zhang15_dbpedia_vocab_path, column="selected", force_process=False,
+        # config.zhang15_dbpedia_full_data_path, config.zhang15_dbpedia_vocab_path, column="selected", force_process=False,
+        config.zhang15_dbpedia_full_data_path, config.zhang15_dbpedia_vocab_path, column="text", force_process=False,
         min_word_count=55
     )
 
@@ -680,6 +686,11 @@ if __name__ == "__main__":
         class_dict
     )
 
+    print("Check NaN in csv ...")
+    check_nan_train = dataloader.check_df(config.zhang15_dbpedia_train_path)
+    check_nan_test = dataloader.check_df(config.zhang15_dbpedia_test_path)
+    print("Train NaN %s, Test NaN %s" % (check_nan_train, check_nan_test))
+
     train_class_list = dataloader.load_data_class(
         filename=config.zhang15_dbpedia_train_path,
         column="class",
@@ -687,7 +698,9 @@ if __name__ == "__main__":
 
     train_text_seqs = dataloader.load_data_from_text_given_vocab(
         config.zhang15_dbpedia_train_path, vocab, config.zhang15_dbpedia_train_processed_path,
-        column="selected", force_process=False
+        # column="text", force_process=check_nan_train
+        # column="selected", force_process=check_nan_train
+        column="selected_tfidf", force_process=check_nan_train
     )
 
     test_class_list = dataloader.load_data_class(
@@ -697,14 +710,17 @@ if __name__ == "__main__":
 
     test_text_seqs = dataloader.load_data_from_text_given_vocab(
         config.zhang15_dbpedia_test_path, vocab, config.zhang15_dbpedia_test_processed_path,
-        column="selected", force_process=False
+        # column="text", force_process=check_nan_test
+        # column="selected", force_process=check_nan_test
+        column="selected_tfidf", force_process=check_nan_test
     )
 
+    # print([vocab.id_to_word(wordid) for wordid in train_text_seqs[0][:10]])
     # lenlist = [len(text) for text in test_text_seqs]
-    # print(np.mean(lenlist))
-    # print(np.percentile(lenlist, 95))
-    # print(np.percentile(lenlist, 90))
-    # print(np.percentile(lenlist, 80))
+    # print(np.mean(lenlist))  # full 49.52 selected_tfidf 32.03
+    # print(np.percentile(lenlist, 95))  # full 85 selected_tfidf 58
+    # print(np.percentile(lenlist, 90))  # full 80 selected_tfidf 53
+    # print(np.percentile(lenlist, 80))  # full 73 selected_tfidf 47
     # exit()
 
     for i in range(10):
@@ -717,12 +733,17 @@ if __name__ == "__main__":
 
             mdl = model.Model_KG4Text(
                 # model_name="selected_zhang15_dbpedia_kg3_random%d_unseen%.2f_max%d_cnn_negative%dincrease2_randomtext" \
-                model_name="selected_zhang15_dbpedia_kg3_random%d_unseen%.2f_max%d_cnn_negative%dincrease3_randomtext" \
+                # model_name="selected_zhang15_dbpedia_kg3_random%d_unseen%.2f_max%d_cnn_negative%dincrease3_randomtext" \
+                # model_name="selected_zhang15_dbpedia_kg3_cluster_3group_random%d_unseen%.2f_max%d_cnn_negative%dincrease2_randomtext" \
+                # model_name="selected_zhang15_dbpedia_kg3_cluster_allgroup_random%d_unseen%.2f_max%d_cnn_negative%dincrease2_randomtext" \
+                # model_name="full_zhang15_dbpedia_kg3_cluster_allgroup_random%d_unseen%.2f_max%d_cnn_negative%dincrease2_randomtext" \
+                # model_name="full_zhang15_dbpedia_kg3_cluster_3group_random%d_unseen%.2f_max%d_cnn_negative%dincrease2_randomtext" \
+                model_name="selected_tfidf_zhang15_dbpedia_kg3_cluster_3group_random%d_unseen%.2f_max%d_cnn_negative%dincrease2_randomtext" \
                                % (i + 1, unseen_percentage, max_length, config.negative_sample),
                 start_learning_rate=0.0001,
                 decay_rate=0.8,
                 decay_steps=5e3,
-                vocab_size=20000,
+                vocab_size=23000,
                 max_length=max_length
             )
             ctl = Controller_KG4Text(
@@ -731,8 +752,8 @@ if __name__ == "__main__":
                 class_dict=class_dict,
                 kg_vector_dict=kg_vector_dict,
                 word_embed_mat=glove_mat,
-                lemma=False,
-                # lemma=True,
+                # lemma=False,
+                lemma=True,
                 random_unseen=True,
                 random_percentage=unseen_percentage,
                 base_epoch=-1,
@@ -743,20 +764,24 @@ if __name__ == "__main__":
             ctl.controller4test(test_text_seqs, test_class_list, unseen_class_list=ctl.unseen_class, base_epoch=5)
 
             ctl.sess.close()
-    '''
 
     # chen14 dataset
     '''
     vocab = dataloader.build_vocabulary_from_full_corpus(
-        config.chen14_full_data_path, config.chen14_vocab_path, column="text", force_process=False
+        config.chen14_elec_full_data_path, config.chen14_elec_vocab_path, column="text", force_process=False,
+        min_word_count=10
     )
 
     glove_mat = dataloader.load_glove_word_vector(
-        config.word_embed_file_path, config.chen14_word_embed_matrix_path, vocab, force_process=False
+        config.word_embed_file_path, config.chen14_elec_word_embed_matrix_path, vocab, force_process=False
     )
+    assert np.sum(glove_mat[vocab.start_id]) == 0
+    assert np.sum(glove_mat[vocab.end_id]) == 0
+    assert np.sum(glove_mat[vocab.unk_id]) == 0
+    assert np.sum(glove_mat[vocab.pad_id]) == 0
 
     class_dict = dataloader.load_class_dict(
-        class_file=config.chen14_class_label_path,
+        class_file=config.chen14_elec_class_label_path,
         class_code_column="ClassCode",
         class_name_column="ConceptNet"
     )
@@ -765,49 +790,62 @@ if __name__ == "__main__":
     for class_id in class_dict:
         class_label = class_dict[class_id]
         class_label_word_id = vocab.word_to_id(class_label)
-        assert class_label_word_id != vocab.unk_id
-        assert np.sum(glove_mat[class_label_word_id]) != 0
+        # assert class_label_word_id != vocab.unk_id
+        # assert np.sum(glove_mat[class_label_word_id]) != 0
+        # if class_label_word_id == vocab.unk_id:
+        #     print("UNK", class_label)
+        # if np.sum(glove_mat[class_label_word_id]) == 0:
+        #     print("GLO", class_label)
 
     kg_vector_dict = dataloader.load_kg_vector(
-        config.chen14_kg_vector_dir,
-        config.chen14_kg_vector_prefix,
+        config.chen14_elec_kg_vector_dir,
+        config.chen14_elec_kg_vector_prefix,
         class_dict
     )
 
     train_class_list = dataloader.load_data_class(
-        filename=config.chen14_train_path,
+        filename=config.chen14_elec_train_path,
         column="class",
     )
 
     train_text_seqs = dataloader.load_data_from_text_given_vocab(
-        config.chen14_train_path, vocab, config.chen14_train_processed_path,
+        config.chen14_elec_train_path, vocab, config.chen14_elec_train_processed_path,
         column="text", force_process=False
     )
 
     test_class_list = dataloader.load_data_class(
-        filename=config.chen14_test_path,
+        filename=config.chen14_elec_test_path,
         column="class",
     )
 
     test_text_seqs = dataloader.load_data_from_text_given_vocab(
-        config.chen14_test_path, vocab, config.chen14_test_processed_path,
+        config.chen14_elec_test_path, vocab, config.chen14_elec_test_processed_path,
         column="text", force_process=False
     )
+
+    # lenlist = [len(text) for text in test_text_seqs]
+    # print(np.mean(lenlist))
+    # print(np.percentile(lenlist, 95))
+    # print(np.percentile(lenlist, 90))
+    # print(np.percentile(lenlist, 80))
+    # exit()
 
     for i in range(10):
 
         unseen_percentage = 0.25
+        max_length = 200
 
         with tf.Graph().as_default() as graph:
             tl.layers.clear_layers_name()
 
             mdl = model.Model_KG4Text(
-                model_name="key_chen14_kg3_random%d_unseen%.2f" % (i + 1, unseen_percentage),
-                start_learning_rate=0.0001,
-                decay_rate=0.8,
-                decay_steps=5e3,
-                vocab_size=8000,
-                max_length=10,
+                model_name="selected_chen14_elec_kg3_random%d_unseen%.2f_max%d_cnn_negative%dincrease2_randomtext" \
+                           % (i + 1, unseen_percentage, max_length, config.negative_sample),
+                start_learning_rate=0.001,
+                decay_rate=0.6,
+                decay_steps=2000,
+                vocab_size=15000,
+                max_length=max_length,
                 hidden_dim=512,
             )
             ctl = Controller_KG4Text(
@@ -822,15 +860,17 @@ if __name__ == "__main__":
                 random_percentage=unseen_percentage,
                 base_epoch=-1,
             )
-            # ctl.controller(train_text_seqs, train_class_list, test_text_seqs, test_class_list, train_epoch=20, save_test_per_epoch=5)
-            unseen_class_list = [35, 29, 31, 19, 15, 25, 11, 50, 33, 46, 3, 36]
-            ctl.controller4test(test_text_seqs, test_class_list, unseen_class_list, base_epoch=0)
-            exit()
+            ctl.controller(train_text_seqs, train_class_list, test_text_seqs, test_class_list, train_epoch=20)
+            # unseen_class_list = [35, 29, 31, 19, 15, 25, 11, 50, 33, 46, 3, 36]
+            # unseen_class_list = [10, 17, 14, 11, 8]
+            # ctl.controller4test(test_text_seqs, test_class_list, unseen_class_list, base_epoch=20)
+            ctl.controller4test(test_text_seqs, test_class_list, unseen_class_list=ctl.unseen_class, base_epoch=20)
 
             ctl.sess.close()
     '''
 
     # 20 news
+    '''
     vocab = dataloader.build_vocabulary_from_full_corpus(
         config.news20_full_data_path, config.news20_vocab_path, column="selected", force_process=False,
         min_word_count=10
@@ -963,6 +1003,7 @@ if __name__ == "__main__":
             ctl.controller4test(test_text_seqs, test_class_list, unseen_class_list=ctl.unseen_class, base_epoch=10)
 
             ctl.sess.close()
+    '''
 
     pass
 

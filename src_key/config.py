@@ -8,12 +8,15 @@ train_epoch = 100
 batch_size = 32
 max_length = 50
 
-negative_sample = 9
+negative_sample = 5
 
 word_embedding_dim = 200
 hidden_dim = 256
 
-kg_embedding_dim = 400 # kg_vector hop=2
+# TODO if updating kg_vector file, you may need to change this also
+# kg_embedding_dim = 10 # kg_vector cluster allgroup
+kg_embedding_dim = 30 # kg_vector cluster 3group
+# kg_embedding_dim = 400 # kg_vector hop=2
 # kg_embedding_dim = 8 # kg_vector hop=1
 
 # prepro_min_word_count = 5 # wiki
@@ -103,8 +106,12 @@ zhang15_dbpedia_class_label_path = zhang15_dbpedia_dir + "classLabelsDBpedia.csv
 zhang15_dbpedia_kg_vector_train_processed_path = zhang15_dbpedia_dir + "kg_vector_train_processed.pkl"
 zhang15_dbpedia_kg_vector_test_processed_path = zhang15_dbpedia_dir + "kg_vector_test_processed.pkl"
 
-zhang15_dbpedia_kg_vector_dir = zhang15_dbpedia_dir + "KG_VECTOR_3/"
-zhang15_dbpedia_kg_vector_prefix = "KG_VECTORS_3_"
+#TODO change filename of kg_vector
+# zhang15_dbpedia_kg_vector_dir = zhang15_dbpedia_dir + "KG_VECTOR_3/"
+# zhang15_dbpedia_kg_vector_prefix = "KG_VECTORS_3_"
+zhang15_dbpedia_kg_vector_dir = zhang15_dbpedia_dir + "KG_VECTOR_CLUSTER_3GROUP/"
+# zhang15_dbpedia_kg_vector_dir = zhang15_dbpedia_dir + "KG_VECTOR_CLUSTER_ALLGROUP/"
+zhang15_dbpedia_kg_vector_prefix = "VECTORS_CLUSTER_3_"
 
 zhang15_dbpedia_word_embed_matrix_path = zhang15_dbpedia_dir + "word_embed_matrix.npz"
 
@@ -148,6 +155,30 @@ chen14_kg_vector_dir = chen14_dir + "KG_VECTOR_3_Lem/"
 chen14_kg_vector_prefix = "lemmatised_KG_VECTORS_3_"
 
 chen14_word_embed_matrix_path = chen14_dir + "word_embed_matrix.npz"
+
+##################################
+
+chen14_elec_dir = "../data/chen14/clean_elec/"
+
+chen14_elec_class_label_path = chen14_elec_dir + "classLabelsChen14Elec.csv"
+
+chen14_elec_full_data_path = chen14_elec_dir + "full.csv"
+
+chen14_elec_train_path = chen14_elec_dir + "train.csv"
+chen14_elec_train_processed_path = chen14_elec_dir + "processed_train_text.pkl"
+
+chen14_elec_test_path = chen14_elec_dir + "test.csv"
+chen14_elec_test_processed_path = chen14_elec_dir + "processed_test_text.pkl"
+
+chen14_elec_vocab_path = chen14_elec_dir + "vocab.txt"
+
+# chen14_kg_vector_dir = chen14_dir + "KG_VECTOR_3/"
+# chen14_kg_vector_prefix = "KG_VECTORS_3_"
+chen14_elec_kg_vector_dir = chen14_elec_dir + "KG_VECTOR_3_Lem/"
+chen14_elec_kg_vector_prefix = "lemmatised_KG_VECTORS_3_elec_"
+
+chen14_elec_word_embed_matrix_path = chen14_elec_dir + "word_embed_matrix.npz"
+
 
 ##################################
 

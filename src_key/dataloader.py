@@ -17,6 +17,15 @@ END_ID = '<END_ID>'
 PAD_ID = '<PAD_ID>'
 UNK_ID = '<UNK_ID>'
 
+
+def check_df(filename):
+    df = pd.read_csv(filename, index_col=0)
+    nan = df.isnull().values.any()
+    df.dropna(inplace=True)
+    df.reset_index(drop=True)
+    df.to_csv(filename)
+    return nan
+
 def preprocess(textlist):
     print("Preprocessing ...")
     with progressbar.ProgressBar(max_value=len(textlist)) as bar:
@@ -243,10 +252,10 @@ if __name__ == "__main__":
 
     # vocab = build_vocabulary_from_full_corpus(config.wiki_full_data_path, config.wiki_vocab_path, column="text", force_process=True)
     # vocab = build_vocabulary_from_full_corpus(config.arxiv_full_data_path, config.arxiv_vocab_path, column="abstract", force_process=True)
-    # vocab = build_vocabulary_from_full_corpus(config.zhang15_dbpedia_full_data_path, config.zhang15_dbpedia_vocab_path, column="text", force_process=False)
+    vocab = build_vocabulary_from_full_corpus(config.zhang15_dbpedia_full_data_path, config.zhang15_dbpedia_vocab_path, column="text", force_process=False)
     # vocab = build_vocabulary_from_full_corpus(config.zhang15_yahoo_full_data_path, config.zhang15_yahoo_vocab_path, column=["question_title", "question_content", "best_answer"], force_process=False)
     # vocab = build_vocabulary_from_full_corpus(config.chen14_full_data_path, config.chen14_vocab_path, column="text", min_word_count=1, force_process=False)
-    vocab = build_vocabulary_from_full_corpus(config.news20_full_data_path, config.news20_vocab_path, column="text", min_word_count=1, force_process=False)
+    # vocab = build_vocabulary_from_full_corpus(config.news20_full_data_path, config.news20_vocab_path, column="text", min_word_count=1, force_process=False)
 
     # text_seqs = load_data_from_text_given_vocab(
     #     config.zhang15_dbpedia_test_path, vocab, config.zhang15_dbpedia_test_processed_path,

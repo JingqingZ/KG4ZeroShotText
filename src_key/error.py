@@ -540,12 +540,18 @@ if __name__ == "__main__":
         # filename = "../results/selected_zhang15_dbpedia_noclasslabel_random%d_unseen0.25_max50_cnn_negative9increase2_randomtext/logs/test_5.npz" \
         # filename = "../results//selected_news20_kg3_random%d_unseen0.25_max100_cnn_negative2increase2_randomtext/logs/test_10.npz" \
         # filename = "../results/selected_zhang15_dbpedia_kg3_random%d_unseen0.25_max50_cnn_negative9increase2_randomtext/logs/test_5.npz" \
-        # filename = "../results/selected_zhang15_dbpedia_kg3_random%d_unseen0.25_max50_cnn_negative9increase3_randomtext/logs/test_5.npz" \
         # filename = "../results/selected_news20_kg3_random%d_unseen0.25_max100_cnn_negative2increase2_randomtext/logs/test_10.npz" \
         # filename = "../results/selected_zhang15_dbpedia_nokg_random%d_unseen0.25_max50_cnn_negative-1_randomtext/logs/test_10.npz" \
+        # filename = "../results/selected_news20_kg3_random%d_unseen0.25_max100_cnn_negative9increase2_randomtext/logs/test_10.npz" \
+        # filename = "../results/selected_zhang15_dbpedia_nokg_random%d_unseen0.25_max50_cnn_negative-1_randomtext/logs/test_10.npz" \
         # filename = "../results/selected_zhang15_dbpedia_noclasslabel_random%d_unseen0.25_max50_cnn_negative9increase2_randomtext/logs/test_5.npz" \
-        filename = "../results/selected_zhang15_dbpedia_nokg_random%d_unseen0.25_max50_cnn_negative-1_randomtext/logs/test_10.npz" \
-                   % (i + 1)
+        # filename = "../results/selected_zhang15_dbpedia_kg3_random%d_unseen0.25_max50_cnn_negative9increase3_randomtext/logs/test_5.npz" \
+        # filename = "../results/selected_news20_kg3_random%d_unseen0.25_max100_cnn_negative9increase2_randomtext/logs/test_10.npz" \
+        # filename = "../results/selected_chen14_elec_kg3_random%d_unseen0.25_max200_cnn_negative9increase2_randomtext/logs/test_20.npz" \
+        # filename ="../results/selected_zhang15_dbpedia_kg3_cluster_3group_random%d_unseen0.25_max50_cnn_negative5increase2_randomtext/logs/test_5.npz" \
+        # filename ="../results/selected_zhang15_dbpedia_kg3_cluster_allgroup_random%d_unseen0.25_max50_cnn_negative5increase2_randomtext/logs/test_5.npz" \
+        filename ="../results/full_zhang15_dbpedia_kg3_cluster_allgroup_only_random%d_unseen0.25_max50_cnn_negative9increase2_randomtext/logs/test_5.npz" \
+                          % (i + 1)
 
         # pred_seen, pred_unseen, pred_both, gt_both = classify_single_label(filename)
         # classify_multiple_label(filename)
@@ -555,11 +561,14 @@ if __name__ == "__main__":
 
         class_distance_matrix = np.loadtxt('../data/zhang15/dbpedia_csv/class_distance.txt')
         # class_distance_matrix = np.loadtxt(config.news20_dir + 'class_distance_20newsgroups.txt')
+        # class_distance_matrix = np.loadtxt(config.chen14_elec_dir + 'class_distance_elec.txt')
         # class_distance_matrix = np.loadtxt('../data/zhang15/dbpedia_csv/class_distance_glove.txt')
-        classify_adjust = classify_adjust_single_label(filename, class_distance_matrix)
-        # classify_noadjust = classify_without_adjust_single_label(filename, None)
-        # reject_list.append(classify_noadjust)
-        reject_list.append(classify_adjust)
+
+        # classify_adjust = classify_adjust_single_label(filename, class_distance_matrix)
+        # reject_list.append(classify_adjust)
+
+        classify_noadjust = classify_without_adjust_single_label(filename, None)
+        reject_list.append(classify_noadjust)
 
         # classify = classify_single_label2(filename)
         # reject_list.append(classify)
@@ -577,7 +586,7 @@ if __name__ == "__main__":
     for sidx in range(len(pred_dict)):
         for mea in pred_dict[sidx]:
             pred_dict[sidx][mea] /= num
-            pred_dict[sidx][mea] = 1 - pred_dict[sidx][mea]
+            pred_dict[sidx][mea] = pred_dict[sidx][mea]
 
     # pred_dict = [dict(), dict(), dict(), dict(), dict()]
     # for reject in reject_list:
