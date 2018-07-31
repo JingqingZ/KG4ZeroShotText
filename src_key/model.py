@@ -91,10 +91,17 @@ class Model_KG4Text():
 
             net_kg = ReshapeLayer(
                 net_kg,
-                shape=(-1, config.kg_embedding_dim),
+                shape=(-1, self.kg_embedding_dim),
                 name="reshape_kg_1"
             )
 
+            net_kg = ReshapeLayer(
+                net_kg,
+                shape=(-1, self.max_length, self.kg_embedding_dim),
+                name="reshape_kg_2"
+            )
+
+            '''
             net_kg = DenseLayer(
                 net_kg,
                 n_units=200,
@@ -107,13 +114,14 @@ class Model_KG4Text():
                 shape=(-1, self.max_length, 200),
                 name="reshape_kg_2"
             )
+            '''
 
             # TODO: kg_vector for training
-            net_in = ConcatLayer(
-                 [net_word_embed, net_kg, net_class_label_embed],
-                 concat_dim=-1,
-                 name='concat_kg_word'
-            )
+            # net_in = ConcatLayer(
+            #      [net_word_embed, net_kg, net_class_label_embed],
+            #      concat_dim=-1,
+            #      name='concat_kg_word'
+            # )
 
             # net_in = ConcatLayer(
             #     [net_word_embed, net_kg],
@@ -126,6 +134,11 @@ class Model_KG4Text():
             #     concat_dim=-1,
             #     name='concat_kg_word'
             # )
+            net_in = ConcatLayer(
+                [net_kg],
+                concat_dim=-1,
+                name='concat_kg_word'
+            )
 
             filter_length = [3, 4, 5]
             n_filter = 200
@@ -183,7 +196,7 @@ class Model_KG4Text():
 
              net_kg = ReshapeLayer(
                  net_kg,
-                 shape=(-1, config.kg_embedding_dim),
+                 shape=(-1, self.kg_embedding_dim),
                  name="reshape_kg_1"
              )
 
