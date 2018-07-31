@@ -1,7 +1,11 @@
 data/
 data/arxiv/*
 data/wiki/*
+data/review/*
 data/dbpedia/*
+data/glove/*
+data/newsgroup/*
+paper/*
 wordEmbeddings/
 .idea/
 data/wiki/*.txt
@@ -14,4 +18,5 @@ __pycache__/
 results/
 src/*.npz
 src_key/.ipynb_checkpoints
+src_key/data/*
 src/classifier_NN.py
