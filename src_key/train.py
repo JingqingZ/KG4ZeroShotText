@@ -736,9 +736,10 @@ if __name__ == "__main__":
                 # model_name="selected_zhang15_dbpedia_kg3_random%d_unseen%.2f_max%d_cnn_negative%dincrease3_randomtext" \
                 # model_name="selected_zhang15_dbpedia_kg3_cluster_3group_random%d_unseen%.2f_max%d_cnn_negative%dincrease2_randomtext" \
                 # model_name="selected_zhang15_dbpedia_kg3_cluster_allgroup_random%d_unseen%.2f_max%d_cnn_negative%dincrease2_randomtext" \
-                # model_name="full_zhang15_dbpedia_kg3_cluster_allgroup_random%d_unseen%.2f_max%d_cnn_negative%dincrease2_randomtext" \
-                # model_name="full_zhang15_dbpedia_kg3_cluster_3group_random%d_unseen%.2f_max%d_cnn_negative%dincrease2_randomtext" \
-                model_name="selected_tfidf_zhang15_dbpedia_kg3_cluster_3group_random%d_unseen%.2f_max%d_cnn_negative%dincrease2_randomtext" \
+                # model_name="full_zhang15_dbpedia_kg3_cluster_allgroup_only_random%d_unseen%.2f_max%d_cnn_negative%dincrease2_randomtext" \
+                # model_name="full_zhang15_dbpedia_kg3_cluster_3group_only_random%d_unseen%.2f_max%d_cnn_negative%dincrease2_randomtext" \
+                # model_name="selected_tfidf_zhang15_dbpedia_kg3_cluster_3group_random%d_unseen%.2f_max%d_cnn_negative%dincrease2_randomtext" \
+                model_name="selected_tfidf_zhang15_dbpedia_kg3_cluster_3group_only_random%d_unseen%.2f_max%d_cnn_negative%dincrease2_randomtext" \
                                % (i + 1, unseen_percentage, max_length, config.negative_sample),
                 start_learning_rate=0.0001,
                 decay_rate=0.8,

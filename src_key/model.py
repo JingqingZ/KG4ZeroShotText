@@ -117,11 +117,11 @@ class Model_KG4Text():
             '''
 
             # TODO: kg_vector for training
-            net_in = ConcatLayer(
-                 [net_word_embed, net_kg, net_class_label_embed],
-                 concat_dim=-1,
-                 name='concat_kg_word'
-            )
+            # net_in = ConcatLayer(
+            #      [net_word_embed, net_kg, net_class_label_embed],
+            #      concat_dim=-1,
+            #      name='concat_kg_word'
+            # )
 
             # net_in = ConcatLayer(
             #     [net_word_embed, net_kg],
@@ -134,11 +134,11 @@ class Model_KG4Text():
             #     concat_dim=-1,
             #     name='concat_kg_word'
             # )
-            # net_in = ConcatLayer(
-            #     [net_kg],
-            #     concat_dim=-1,
-            #     name='concat_kg_word'
-            # )
+            net_in = ConcatLayer(
+                [net_kg],
+                concat_dim=-1,
+                name='concat_kg_word'
+            )
 
             filter_length = [3, 4, 5]
             n_filter = 200
