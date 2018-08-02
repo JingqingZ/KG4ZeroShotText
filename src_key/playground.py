@@ -506,16 +506,16 @@ def preprocessing(filename, column="text", ncolumn="selected"):
     df.to_csv(filename)
 
 def combine_zhang15_dbpedia_train_test():
-    # df_train = pd.read_csv(config.zhang15_dbpedia_train_path, names=["class", "title", "text"])
-    # df_test = pd.read_csv(config.zhang15_dbpedia_test_path, names=["class", "title", "text"])
-    df_train = pd.read_csv(config.zhang15_dbpedia_train_path, index_col=0)
-    df_test = pd.read_csv(config.zhang15_dbpedia_test_path, index_col=0)
-    df_train = df_train[["class", "title", "text", "selected"]]
-    df_test = df_test[["class", "title", "text", "selected"]]
-    # df_train.to_csv(config.zhang15_dbpedia_train_path)
-    # df_test.to_csv(config.zhang15_dbpedia_test_path)
-    df_full = pd.concat([df_train, df_test], ignore_index=True)
-    df_full.to_csv(config.zhang15_dbpedia_full_data_path)
+    df_train = pd.read_csv(config.zhang15_dbpedia_train_path, names=["class", "title", "text"])
+    df_test = pd.read_csv(config.zhang15_dbpedia_test_path, names=["class", "title", "text"])
+    # df_train = pd.read_csv(config.zhang15_dbpedia_train_path, index_col=0)
+    # df_test = pd.read_csv(config.zhang15_dbpedia_test_path, index_col=0)
+    # df_train = df_train[["class", "title", "text", "selected"]]
+    # df_test = df_test[["class", "title", "text", "selected"]]
+    df_train.to_csv(config.zhang15_dbpedia_train_path)
+    df_test.to_csv(config.zhang15_dbpedia_test_path)
+    # df_full = pd.concat([df_train, df_test], ignore_index=True)
+    # df_full.to_csv(config.zhang15_dbpedia_full_data_path)
 
 def combine_20news_train_test():
     df_train = pd.read_csv(config.news20_train_path, index_col=0)
@@ -888,9 +888,11 @@ if __name__ == "__main__":
     # analysis_num_in_vocab()
     # visualise_wordvector()
 
+    combine_zhang15_dbpedia_train_test()
     # tf_idf_document()
     # tf_idf_category()
 
+    '''
     df = pd.read_csv(config.zhang15_dbpedia_train_path, index_col=0)
     for i in range(df.shape[0]):
         if type(df.iloc[i]["selected_tfidf"]) != str:
@@ -898,6 +900,7 @@ if __name__ == "__main__":
             print(df.iloc[i]["text"])
             print(df.iloc[i]["selected_tfidf"])
             exit()
+    '''
     pass
 
 

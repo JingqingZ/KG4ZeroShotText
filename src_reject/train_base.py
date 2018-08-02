@@ -21,7 +21,7 @@ import log
 import utils
 import error
 import config
-import model
+import model_base
 import dataloader
 
 results_path = "../results/"

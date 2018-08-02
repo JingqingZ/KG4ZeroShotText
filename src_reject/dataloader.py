@@ -21,9 +21,9 @@ UNK_ID = '<UNK_ID>'
 def check_df(filename):
     df = pd.read_csv(filename, index_col=0)
     nan = df.isnull().values.any()
-    df.dropna(inplace=True)
-    df.reset_index(drop=True)
-    df.to_csv(filename)
+    # df.dropna(inplace=True)
+    # df.reset_index(drop=True)
+    # df.to_csv(filename)
     return nan
 
 def preprocess(textlist):

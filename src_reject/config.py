@@ -23,7 +23,8 @@ kg_embedding_dim = 30 # kg_vector cluster 3group
 prepro_min_word_count = 100 # arxiv
 prepro_max_sentence_length = max_length
 
-cstep_print = 50
+cstep_print = 500
+cstep_print_unseen = 50
 
 ##################################
 

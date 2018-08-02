@@ -344,6 +344,7 @@ class Model_KG4Text():
         self.train_loss = tl.cost.binary_cross_entropy(
             output=self.train_net.outputs,
             target=self.category_logits,
+            name="train_loss"
         )
 
         # self.train_align_loss =
@@ -351,6 +352,7 @@ class Model_KG4Text():
         self.test_loss = tl.cost.binary_cross_entropy(
             output=self.test_net.outputs,
             target=self.category_logits,
+            name="test_loss"
         )
         # self.infer_loss = tl.cost.binary_cross_entropy(
         #     output=self.infer_net.outputs,
