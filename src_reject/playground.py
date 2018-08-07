@@ -635,67 +635,34 @@ def visualise_wordvector():
     pylab.scatter(y[:, 0], y[:, 1], 4, labels)
     pylab.show()
 
-def tf_idf_document():
-    vocab = dataloader.build_vocabulary_from_full_corpus(
-        config.zhang15_dbpedia_full_data_path, config.zhang15_dbpedia_vocab_path, column="text", force_process=False,
-        min_word_count=55
-    )
+def tf_idf_document(vocab, glove_mat, text_seqs, df_filename, df_out_filename):
 
-    class_dict = dataloader.load_class_dict(
-        class_file=config.zhang15_dbpedia_class_label_path,
-        class_code_column="ClassCode",
-        class_name_column="ConceptNet"
-    )
-
-    glove_mat = dataloader.load_glove_word_vector(
-        config.word_embed_file_path, config.zhang15_dbpedia_word_embed_matrix_path, vocab, force_process=False
-    )
-
-    assert np.sum(glove_mat[vocab.start_id]) == 0
-    assert np.sum(glove_mat[vocab.end_id]) == 0
-    assert np.sum(glove_mat[vocab.unk_id]) == 0
-    assert np.sum(glove_mat[vocab.pad_id]) == 0
-
-    train_class_list = dataloader.load_data_class(
-        # filename=config.zhang15_dbpedia_train_path,
-        filename=config.zhang15_dbpedia_test_path,
-        column="class",
-    )
-
-    train_text_seqs = dataloader.load_data_from_text_given_vocab(
-        # config.zhang15_dbpedia_train_path, vocab, config.zhang15_dbpedia_train_processed_path,
-        config.zhang15_dbpedia_test_path, vocab, config.zhang15_dbpedia_test_processed_path,
-        column="text", force_process=False
-    )
-
-    train_df = pd.read_csv(
-        # config.zhang15_dbpedia_train_path,
-        config.zhang15_dbpedia_test_path,
+    df = pd.read_csv(
+        df_filename,
         index_col=0
     )
-    train_df.drop(columns=[col for col in train_df.columns if "Unnamed:" in str(col)], inplace=True)
+    df.drop(columns=[col for col in df.columns if "Unnamed:" in str(col)], inplace=True)
 
-    train_df["selected_tfidf"] = ""
+    df["selected_tfidf"] = ""
 
-    assert len(train_text_seqs) == len(train_class_list)
-    assert len(train_class_list) == train_df.shape[0]
+    assert len(text_seqs) == df.shape[0]
 
     print("IDF")
     appearance_of_word = np.zeros(vocab.unk_id + 1)
-    for idx, document in enumerate(train_text_seqs):
+    for idx, document in enumerate(text_seqs):
         word_set = set()
         for wordid in document:
             if wordid not in word_set:
                 appearance_of_word[wordid] += 1
             word_set.add(wordid)
 
-    total_number_documents = len(train_text_seqs)
+    total_number_documents = len(text_seqs)
     idf_word = np.log(total_number_documents / (1 + appearance_of_word))
 
     print("DF")
-    with progressbar.ProgressBar(max_value=len(train_text_seqs)) as bar:
+    with progressbar.ProgressBar(max_value=len(text_seqs)) as bar:
         # counting numbers
-        for idx, document in enumerate(train_text_seqs):
+        for idx, document in enumerate(text_seqs):
             number_of_word = dict()
             for wordid in document:
                 # if the word is not found in glove then ignore the word
@@ -709,20 +676,22 @@ def tf_idf_document():
             tfidf_word = {k: v * idf_word[k] for k, v in tf_word.items()}
 
             # find top k words in this doument
-            k = max(len(document) // 2, 10)
+            k = max(len(document) // 3, 10)
             k = min(k, len(document))
+
+            # k = min(100, len(document) // 2)
 
             import operator
             sorted_tfidf = sorted(tfidf_word.items(), key=operator.itemgetter(1), reverse=True)
             topk = {t[0]: t[1] for t in sorted_tfidf[:k]}
 
             # save to df and then csv
-            train_df.set_value(idx, "selected_tfidf", " ".join([vocab.id_to_word(wordid) for wordid in document if wordid in topk]))
-            # print(train_df.iloc[idx]["text"])
-            # print(train_df.iloc[idx]["selected_tfidf"])
+            df.set_value(idx, "selected_tfidf", " ".join([vocab.id_to_word(wordid) for wordid in document if wordid in topk]))
+            # print(df.iloc[idx]["text"])
+            # print(df.iloc[idx]["selected_tfidf"])
             bar.update(idx)
 
-    train_df.to_csv("sample.csv")
+    df.to_csv(df_out_filename)
 
 
 

@@ -102,11 +102,15 @@ class Controller4Seen(train_base.Base_Controller):
         print("Text seqs of seen classes: %d" % len(seen_text_seqs))
         return seen_text_seqs, seen_class_list
 
-    def prepro_encode(self, textlist):
+    def prepro_encode(self, textlist, is_train):
         newtextlist = list()
         for idx, text in enumerate(textlist):
             if len(text[1:-1]) > self.model.max_length:
-                startid = 1 + randint(0, len(text[1:-1]) - self.model.max_length)
+                if is_train:
+                    startid = 1 + randint(0, len(text[1:-1]) - self.model.max_length)
+                else:
+                    # startid = 1 + (len(text[1:-1]) - self.model.max_length) // 2
+                    startid = 1
             else:
                 startid = 1
             newtextlist.append(text[startid:-1] + [self.vocab.pad_id])
@@ -126,7 +130,7 @@ class Controller4Seen(train_base.Base_Controller):
         pred_k = list()
         for i in range(pred_mat.shape[0]):
             confidence = pred_mat[i]
-            topk = np.array([self.full_class_list[_] for _ in np.argsort(confidence)[-k:]])
+            topk = np.array([self.full_class_list[_] for _ in np.argsort(confidence)[::-1][:k]])
             for class_id in topk:
                 assert class_id in self.class_dict
             pred_k.append(topk)
@@ -167,7 +171,7 @@ class Controller4Seen(train_base.Base_Controller):
             class_idx_mini = [self.seen_class_map2index[class_list[idx]] for idx in train_order[cstep * config.batch_size : (cstep + 1) * config.batch_size]]
             text_seqs_mini = [text_seqs[idx] for idx in train_order[cstep * config.batch_size : (cstep + 1) * config.batch_size]]
 
-            encode_seqs_id_mini, encode_seqs_mat_mini = self.prepro_encode(text_seqs_mini)
+            encode_seqs_id_mini, encode_seqs_mat_mini = self.prepro_encode(text_seqs_mini, True)
 
             results = self.sess.run([
                 self.model.train_loss,
@@ -188,7 +192,10 @@ class Controller4Seen(train_base.Base_Controller):
                     "[Train] Epoch: [%3d][%4d/%4d] time: %.4f, lr: %.8f, loss: %s" %
                     (epoch, cstep, train_steps, time.time() - step_time, results[-2], all_loss / (cstep + 1) )
                 )
+                # print(results[1][:10])
+                # print(class_idx_mini[:10])
                 step_time = time.time()
+                # exit()
 
         print(
             "[Train Sum] Epoch: [%3d] time: %.4f, lr: %.8f, loss: %s" %
@@ -214,9 +221,10 @@ class Controller4Seen(train_base.Base_Controller):
         for cstep in range(test_steps):
 
             text_seqs_mini = text_seqs[cstep * config.batch_size : (cstep + 1) * config.batch_size]
+            class_idx_or_mini = [_ for _ in class_list[cstep * config.batch_size : (cstep + 1) * config.batch_size]]
             class_idx_mini = [self.seen_class_map2index[_] for _ in class_list[cstep * config.batch_size : (cstep + 1) * config.batch_size]]
 
-            encode_seqs_id_mini, encode_seqs_mat_mini = self.prepro_encode(text_seqs_mini)
+            encode_seqs_id_mini, encode_seqs_mat_mini = self.prepro_encode(text_seqs_mini, False)
 
             pred_mat = np.zeros([config.batch_size, len(self.class_dict)])
 
@@ -241,8 +249,8 @@ class Controller4Seen(train_base.Base_Controller):
 
             if cstep % config.cstep_print == 0 and cstep > 0:
                 tmp_topk = np.concatenate(topk_list, axis=0)
-                tmp_topk = self.get_one_hot_results(np.array(tmp_topk[: (cstep + 1) * config.batch_size]))
-                tmp_gt = self.get_one_hot_results(np.reshape(np.array(class_list[ : (cstep + 1) * config.batch_size]), newshape=(-1, 1)))
+                tmp_topk = self.get_one_hot_results(np.array(tmp_topk[(cstep + 1 - config.cstep_print) * config.batch_size : (cstep + 1) * config.batch_size]))
+                tmp_gt = self.get_one_hot_results(np.reshape(np.array(class_list[(cstep + 1 - config.cstep_print) * config.batch_size : (cstep + 1) * config.batch_size]), newshape=(-1, 1)))
                 tmp_stats = utils.get_statistics(tmp_topk, tmp_gt, single_label_pred=True)
 
                 print(
@@ -253,6 +261,13 @@ class Controller4Seen(train_base.Base_Controller):
 
 
         prediction_topk = np.concatenate(topk_list, axis=0)
+
+        np.set_printoptions(threshold=np.nan, linewidth=100000)
+        print(class_list[: 200])
+        print(np.squeeze(prediction_topk[: 200]))
+        print(class_list[-200: ])
+        print(np.squeeze(prediction_topk[-200: ]))
+
         prediction_topk = self.get_one_hot_results(np.array(prediction_topk[: test_steps * config.batch_size]))
         ground_truth = self.get_one_hot_results(np.reshape(np.array(class_list[: test_steps * config.batch_size]), newshape=(-1, 1)))
 
@@ -293,7 +308,7 @@ class Controller4Seen(train_base.Base_Controller):
                 global_epoch,
                 train_text_seqs,
                 train_class_list,
-                # max_train_steps=3000
+                # max_train_steps=5000
             )
 
             if global_epoch > self.base_epoch and global_epoch % save_test_per_epoch == 0:
@@ -363,8 +378,8 @@ class Controller4Seen(train_base.Base_Controller):
             kg_vector_seen=kg_vector_seen,
         )
 
-if __name__ == "__main__":
 
+def run_dbpedia():
     # DBpedia
     vocab = dataloader.build_vocabulary_from_full_corpus(
         # config.zhang15_dbpedia_full_data_path, config.zhang15_dbpedia_vocab_path, column="selected", force_process=False,
@@ -430,20 +445,20 @@ if __name__ == "__main__":
 
     for i in range(10):
 
-        unseen_percentage = 0.25
+        unseen_percentage = 0.0
         max_length = 50
 
         with tf.Graph().as_default() as graph:
             tl.layers.clear_layers_name()
 
             mdl = model_seen.Model4Seen(
-                model_name="seen_full_zhang15_dbpedia_kg3_cluster_3group_random%d_unseen%.2f_max%d_cnn" \
+                model_name="seen_full_zhang15_dbpedia_vwonly_random%d_unseen%.2f_max%d_cnn" \
                            % (i + 1, unseen_percentage, max_length),
-                start_learning_rate=0.001,
+                start_learning_rate=0.0004,
                 decay_rate=0.5,
-                decay_steps=20e3,
+                decay_steps=10e3,
                 max_length=max_length,
-                number_of_seen_classes=11
+                number_of_seen_classes=14
             )
             # TODO: if unseen_classes are already selected, set randon_unseen_class=False and provide a list of unseen_classes
             ctl = Controller4Seen(
@@ -451,18 +466,128 @@ if __name__ == "__main__":
                 vocab=vocab,
                 class_dict=class_dict,
                 word_embed_mat=glove_mat,
-                random_unseen_class=True,
-                random_unseen_class_list=None,
+                random_unseen_class=False,
+                random_unseen_class_list=list(),
                 base_epoch=-1,
             )
-            ctl.controller(train_text_seqs, train_class_list, test_text_seqs, test_class_list, train_epoch=2)
+            ctl.controller(train_text_seqs, train_class_list, test_text_seqs, test_class_list, train_epoch=5)
             # ctl.controller4test(test_text_seqs, test_class_list, unseen_class_list, base_epoch=5)
-            ctl.controller4test(test_text_seqs, test_class_list, unseen_class_list=ctl.unseen_class, base_epoch=2)
+            ctl.controller4test(test_text_seqs, test_class_list, unseen_class_list=ctl.unseen_class, base_epoch=5)
 
             ctl.sess.close()
-    pass
+            return
+
+def run_20news():
+    vocab = dataloader.build_vocabulary_from_full_corpus(
+        config.news20_full_data_path, config.news20_vocab_path, column="text", force_process=False,
+        min_word_count=10
+    )
+
+    glove_mat = dataloader.load_glove_word_vector(
+        config.word_embed_file_path, config.news20_word_embed_matrix_path, vocab, force_process=False
+    )
+    assert np.sum(glove_mat[vocab.start_id]) == 0
+    assert np.sum(glove_mat[vocab.end_id]) == 0
+    assert np.sum(glove_mat[vocab.unk_id]) == 0
+    assert np.sum(glove_mat[vocab.pad_id]) == 0
+
+    class_dict = dataloader.load_class_dict(
+        class_file=config.news20_class_label_path,
+        class_code_column="ClassCode",
+        class_name_column="ConceptNet"
+    )
+
+    # check class label in vocab and glove
+    for class_id in class_dict:
+        class_label = class_dict[class_id]
+        class_label_word_id = vocab.word_to_id(class_label)
+        assert class_label_word_id != vocab.unk_id
+        assert np.sum(glove_mat[class_label_word_id]) != 0
+
+    print("Check NaN in csv ...")
+    check_nan_train = dataloader.check_df(config.zhang15_dbpedia_train_path)
+    check_nan_test = dataloader.check_df(config.zhang15_dbpedia_test_path)
+    print("Train NaN %s, Test NaN %s" % (check_nan_train, check_nan_test))
+    assert not check_nan_train
+    assert not check_nan_test
+
+    train_class_list = dataloader.load_data_class(
+        filename=config.news20_train_path,
+        column="class",
+    )
+
+    train_text_seqs = dataloader.load_data_from_text_given_vocab(
+        config.news20_train_path, vocab, config.news20_train_processed_path,
+        column="selected_tfidf", force_process=True
+        # column="selected", force_process=True
+        # column="text", force_process=True
+    )
+
+    test_class_list = dataloader.load_data_class(
+        filename=config.news20_test_path,
+        column="class",
+    )
+
+    test_text_seqs = dataloader.load_data_from_text_given_vocab(
+        config.news20_test_path, vocab, config.news20_test_processed_path,
+        column="selected_tfidf", force_process=True
+        # column="selected", force_process=True
+        # column="text", force_process=True
+    )
+
+    # import playground
+    # playground.tf_idf_document(vocab, glove_mat, train_text_seqs, config.news20_train_path, config.news20_train_path)
+    # playground.tf_idf_document(vocab, glove_mat, test_text_seqs, config.news20_test_path, config.news20_test_path)
+    # exit()
+
+    # for idx in range(1000, 1010):
+    #     print(test_class_list[idx], class_dict[test_class_list[idx]])
+    #     print(test_text_seqs[idx])
+    #     print([vocab.id_to_word(word_id) for word_id in test_text_seqs[idx]])
+    #     print([1 if np.sum(glove_mat[word_id]) else 0 for word_id in test_text_seqs[idx]])
+    lenlist = [len(text) for text in test_text_seqs] + [len(text) for text in train_text_seqs]
+    print("Avg length of documents: ", np.mean(lenlist))
+    print("95% length of documents: ", np.percentile(lenlist, 95))
+    print("90% length of documents: ", np.percentile(lenlist, 90))
+    print("80% length of documents: ", np.percentile(lenlist, 80))
+
+    for i in range(10):
+
+        unseen_percentage = 0
+        max_length = 200
+
+        with tf.Graph().as_default() as graph:
+            tl.layers.clear_layers_name()
+
+            mdl = model_seen.Model4Seen(
+                model_name="seen_full_news20_vwonly_random%d_unseen%.2f_max%d_cnn" \
+                           % (i + 1, unseen_percentage, max_length),
+                start_learning_rate=0.001,
+                decay_rate=0.5,
+                decay_steps=4000,
+                max_length=max_length,
+                number_of_seen_classes=20
+            )
+            # TODO: if unseen_classes are already selected, set randon_unseen_class=False and provide a list of unseen_classes
+            ctl = Controller4Seen(
+                model=mdl,
+                vocab=vocab,
+                class_dict=class_dict,
+                word_embed_mat=glove_mat,
+                random_unseen_class=False,
+                random_unseen_class_list=list(),
+                base_epoch=-1,
+            )
+            ctl.controller(train_text_seqs, train_class_list, test_text_seqs, test_class_list, train_epoch=100)
+            ctl.controller4test(test_text_seqs, test_class_list, unseen_class_list=ctl.unseen_class, base_epoch=100)
+
+            ctl.sess.close()
+            return
 
 
+if __name__ == "__main__":
+    # run_dbpedia()
+    run_20news()
 
 
 

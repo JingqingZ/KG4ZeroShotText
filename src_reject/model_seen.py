@@ -54,8 +54,16 @@ class Model4Seen(model_base.Base_Model):
                 name="in_word_embed"
             )
 
+            '''
+            net_in = ReshapeLayer(
+                net_in,
+                (-1, self.max_length, self.word_embedding_dim, 1),
+                name="reshape"
+            )
+            '''
+
             filter_length = [2, 4, 8]
-            n_filter = 200
+            n_filter = 600
 
             net_cnn_list = list()
 
@@ -86,17 +94,29 @@ class Model4Seen(model_base.Base_Model):
 
             net_cnn = FlattenLayer(net_cnn, name="flatten")
             '''
+            '''
+            net_cnn = Conv2d(net_in, 64, (8, 8), act=tf.nn.relu, name="cnn_1")
+            net_cnn = MaxPool2d(net_cnn, (2, 2), padding="valid", name="maxpool_1")
 
-            net_cnn = DropoutLayer(net_cnn, keep=0.8, is_fix=True, is_train=is_train, name='drop1')
+            net_cnn = Conv2d(net_cnn, 32, (4, 4), act=tf.nn.relu, name="cnn_2")
+            net_cnn = MaxPool2d(net_cnn, (2, 4), padding="valid", name="maxpool_2")
+
+            net_cnn = Conv2d(net_cnn, 8, (2, 2), act=tf.nn.relu, name="cnn_3")
+            net_cnn = MaxPool2d(net_cnn, (2, 2), padding="valid", name="maxpool_3")
+
+            net_cnn = FlattenLayer(net_cnn, name="flatten")
+            '''
+
+            net_cnn = DropoutLayer(net_cnn, keep=0.5, is_fix=True, is_train=is_train, name='drop1')
 
             net_fc = DenseLayer(
                 net_cnn,
-                n_units=300,
+                n_units=400,
                 act=tf.nn.relu,
                 name="fc_1"
             )
 
-            net_fc = DropoutLayer(net_fc, keep=0.8, is_fix=True, is_train=is_train, name='drop2')
+            net_fc = DropoutLayer(net_fc, keep=0.5, is_fix=True, is_train=is_train, name='drop2')
 
             net_fc = DenseLayer(
                 net_fc,
@@ -104,6 +124,8 @@ class Model4Seen(model_base.Base_Model):
                 act=tf.nn.relu,
                 name="fc_2"
             )
+
+            net_fc = DropoutLayer(net_fc, keep=0.5, is_fix=True, is_train=is_train, name='drop3')
 
             net_fc = DenseLayer(
                 net_fc,

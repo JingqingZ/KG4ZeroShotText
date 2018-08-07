@@ -601,9 +601,10 @@ if __name__ == "__main__":
         # filename = "../results/selected_zhang15_dbpedia_kg3_random%d_unseen0.25_max50_cnn_negative9increase3_randomtext/logs/test_5.npz" \
         # filename = "../results/selected_zhang15_dbpedia_nokg_random%d_unseen0.25_max50_cnn_negative-1_randomtext/logs/test_10.npz" \
         # filename = "../results/selected_zhang15_dbpedia_noclasslabel_random%d_unseen0.25_max50_cnn_negative9increase2_randomtext/logs/test_5.npz" \
-        # filename ="../results/selected_tfidf_zhang15_dbpedia_kg3_cluster_3group_random%d_unseen0.25_max50_cnn_negative5increase2_randomtext/logs/test_5.npz" \
-        # filename ="../results/selected_tfidf_zhang15_dbpedia_kg3_cluster_3group_only_random%d_unseen0.25_max50_cnn_negative5increase2_randomtext/logs/test_5.npz" \
-        filename ="../results/full_zhang15_dbpedia_kg3_cluster_3group_only_random%d_unseen0.25_max50_cnn_negative5increase2_randomtext/logs/test_5.npz" \
+        # filename = "../results/selected_tfidf_zhang15_dbpedia_kg3_cluster_3group_random%d_unseen0.25_max50_cnn_negative5increase2_randomtext/logs/test_5.npz" \
+        # filename = "../results/selected_tfidf_zhang15_dbpedia_kg3_cluster_3group_only_random%d_unseen0.25_max50_cnn_negative5increase2_randomtext/logs/test_5.npz" \
+        # filename = "../results/full_zhang15_dbpedia_kg3_cluster_3group_only_random%d_unseen0.25_max50_cnn_negative5increase2_randomtext/logs/test_5.npz" \
+        filename = "../results/unseen_full_zhang15_dbpedia_kg3_cluster_3group_random%d_unseen0.25_max50_cnn_negative5increase2_randomtext/logs/test_5.npz" \
                           % (i + 1)
 
         # pred_seen, pred_unseen, pred_both, gt_both = classify_single_label(filename)

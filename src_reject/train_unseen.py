@@ -477,8 +477,8 @@ class Controller4Unseen(train_base.Base_Controller):
                 print("[Test] Testing unseen classes")
                 state_unseen, pred_unseen, gt_unseen, align_unseen, kg_vector_unseen = self.__test__(
                     global_epoch,
-                    [_ for idx, _ in enumerate(unseen_test_text_seqs) if idx % 2 == 0],
-                    [_ for idx, _ in enumerate(unseen_test_class_list) if idx % 2 == 0],
+                    [_ for idx, _ in enumerate(unseen_test_text_seqs) if idx % 4 == 0],
+                    [_ for idx, _ in enumerate(unseen_test_class_list) if idx % 4 == 0],
                 )
 
                 np.savez(

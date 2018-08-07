@@ -23,7 +23,7 @@ kg_embedding_dim = 30 # kg_vector cluster 3group
 prepro_min_word_count = 100 # arxiv
 prepro_max_sentence_length = max_length
 
-cstep_print = 500
+cstep_print = 10
 cstep_print_unseen = 50
 
 ##################################
@@ -197,7 +197,9 @@ news20_test_processed_path = news20_dir + "processed_test_text.pkl"
 
 news20_vocab_path = news20_dir + "vocab.txt"
 
-news20_kg_vector_dir = news20_dir + "KG_VECTOR_3_Lem/"
-news20_kg_vector_prefix = "lemmatised_KG_VECTORS_3_"
+# news20_kg_vector_dir = news20_dir + "KG_VECTOR_3_Lem/"
+# news20_kg_vector_prefix = "lemmatised_KG_VECTORS_3_"
+news20_kg_vector_dir = news20_dir + "KG_VECTOR_CLUSTER_3GROUP/"
+news20_kg_vector_prefix = "VECTORS_CLUSTER_3_"
 
 news20_word_embed_matrix_path = news20_dir + "word_embed_matrix.npz"
