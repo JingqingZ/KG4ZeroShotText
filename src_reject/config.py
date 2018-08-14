@@ -8,7 +8,20 @@ train_epoch = 100
 batch_size = 32
 max_length = 50
 
-negative_sample = 5
+# dbpedia
+# negative_sample = 5
+# negative_increase = 3
+# small_epoch = 1
+
+# 20news
+# negative_sample = 1
+# negative_increase = 1
+# small_epoch = 10
+
+# chen14_elec amazon review
+negative_sample = 1
+negative_increase = 1
+small_epoch = 10
 
 word_embedding_dim = 200
 hidden_dim = 256
@@ -23,7 +36,7 @@ kg_embedding_dim = 30 # kg_vector cluster 3group
 prepro_min_word_count = 100 # arxiv
 prepro_max_sentence_length = max_length
 
-cstep_print = 10
+cstep_print = 100
 cstep_print_unseen = 50
 
 ##################################
@@ -46,6 +59,8 @@ pos_dict = {'JJ': 'a', 'JJR': 'a', 'JJS': 'a',
 # kg_vector_data_path = kg_vector_dir + "KG_VECTORS_2.pickle"
 
 word_embed_file_path = "../data/glove/glove.6B.200d.txt"
+
+conceptnet_path = "../wordEmbeddings/conceptnet-assertions-en-5.6.0.csv"
 
 
 ##################################
@@ -103,6 +118,8 @@ zhang15_dbpedia_train_state_npz_path = zhang15_dbpedia_dir + "train_zhang15_dbpe
 zhang15_dbpedia_test_state_npz_path = zhang15_dbpedia_dir + "test_zhang15_dbpedia_state.npz"
 
 zhang15_dbpedia_class_label_path = zhang15_dbpedia_dir + "classLabelsDBpedia.csv"
+# zhang15_dbpedia_class_random_group_path = zhang15_dbpedia_dir + "dbpedia_random_group.txt"
+zhang15_dbpedia_class_random_group_path = zhang15_dbpedia_dir + "dbpedia_random_group_0.5.txt"
 
 zhang15_dbpedia_kg_vector_train_processed_path = zhang15_dbpedia_dir + "kg_vector_train_processed.pkl"
 zhang15_dbpedia_kg_vector_test_processed_path = zhang15_dbpedia_dir + "kg_vector_test_processed.pkl"
@@ -162,6 +179,7 @@ chen14_word_embed_matrix_path = chen14_dir + "word_embed_matrix.npz"
 chen14_elec_dir = "../data/chen14/clean_elec/"
 
 chen14_elec_class_label_path = chen14_elec_dir + "classLabelsChen14Elec.csv"
+chen14_elec_class_random_group_path = chen14_elec_dir + "chen14_elec_random_group.txt"
 
 chen14_elec_full_data_path = chen14_elec_dir + "full.csv"
 
@@ -175,8 +193,10 @@ chen14_elec_vocab_path = chen14_elec_dir + "vocab.txt"
 
 # chen14_kg_vector_dir = chen14_dir + "KG_VECTOR_3/"
 # chen14_kg_vector_prefix = "KG_VECTORS_3_"
-chen14_elec_kg_vector_dir = chen14_elec_dir + "KG_VECTOR_3_Lem/"
-chen14_elec_kg_vector_prefix = "lemmatised_KG_VECTORS_3_elec_"
+# chen14_elec_kg_vector_dir = chen14_elec_dir + "KG_VECTOR_3_Lem/"
+# chen14_elec_kg_vector_prefix = "lemmatised_KG_VECTORS_3_elec_"
+chen14_elec_kg_vector_dir = chen14_elec_dir + "KG_VECTOR_CLUSTER_3GROUP/"
+chen14_elec_kg_vector_prefix = "VECTORS_CLUSTER_3_"
 
 chen14_elec_word_embed_matrix_path = chen14_elec_dir + "word_embed_matrix.npz"
 
@@ -186,6 +206,7 @@ chen14_elec_word_embed_matrix_path = chen14_elec_dir + "word_embed_matrix.npz"
 news20_dir = "../data/20-newsgroups/clean/"
 
 news20_class_label_path = news20_dir + "classLabels20news.csv"
+news20_class_random_group_path = news20_dir + "20news_random_group.txt"
 
 news20_full_data_path = news20_dir + "full.csv"
 

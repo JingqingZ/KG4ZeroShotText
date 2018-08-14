@@ -17,10 +17,23 @@ END_ID = '<END_ID>'
 PAD_ID = '<PAD_ID>'
 UNK_ID = '<UNK_ID>'
 
+def get_random_group(filename):
+    random_group = list()
+    with open(filename, "r") as f:
+        for line in f:
+            classlist = line.split("|")
+            seen_class = [int(_) for _ in classlist[0].split(",")]
+            unseen_class = [int(_) for _ in classlist[1].split(",")]
+            random_group.append([seen_class, unseen_class])
+    print("Random Group: \n%s" % "\n".join([str(rgroup) for rgroup in random_group]))
+    return random_group
+
 
 def check_df(filename):
     df = pd.read_csv(filename, index_col=0)
     nan = df.isnull().values.any()
+    # if nan:
+    #     print(df.isnull())
     # df.dropna(inplace=True)
     # df.reset_index(drop=True)
     # df.to_csv(filename)

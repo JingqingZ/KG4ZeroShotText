@@ -75,6 +75,18 @@ def get_statistics(prediction, ground_truth, single_label_pred=False):
         single_label_error = np.mean(single_label_prediction != single_label_ground_truth)
         stats['single-label-error'] = single_label_error
 
+        '''
+        error_matrix = np.zeros((ground_truth.shape[1], prediction.shape[1]))
+        for idx, item in enumerate(ground_truth):
+            true_id = np.argmax(ground_truth[idx])
+            pred_id = np.argmax(prediction[idx])
+            error_matrix[true_id][pred_id] += 1
+
+        np.set_printoptions(threshold=np.nan)
+        print(error_matrix)
+        exit()
+        '''
+
     return stats
 
 

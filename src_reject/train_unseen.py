@@ -70,12 +70,11 @@ class Controller4Unseen(train_base.Base_Controller):
             self.unseen_class = random_unseen_class_list
             print("Assigned unseen class %s" % (self.unseen_class))
 
-    def get_seen_class(self):
-        seen_class = list()
+        self.seen_class = list()
         for key in self.class_dict.keys():
             if key not in self.unseen_class:
-                seen_class.append(key)
-        return seen_class
+                self.seen_class.append(key)
+        print("Seen class %s" % (self.seen_class))
 
     def check_seen(self, class_id):
         return not class_id in self.unseen_class
@@ -115,10 +114,11 @@ class Controller4Unseen(train_base.Base_Controller):
     def prepro_encode(self, textlist):
         newtextlist = list()
         for idx, text in enumerate(textlist):
-            if len(text[1:-1]) > self.model.max_length:
-                startid = 1 + randint(0, len(text[1:-1]) - self.model.max_length)
-            else:
-                startid = 1
+            # if len(text[1:-1]) > self.model.max_length:
+            #     startid = 1 + randint(0, len(text[1:-1]) - self.model.max_length)
+            # else:
+            #     startid = 1
+            startid = 1
             newtextlist.append(text[startid:-1] + [self.vocab.pad_id])
         newtextlist = tl.prepro.pad_sequences(newtextlist, maxlen=self.model.max_length, dtype='int64', padding='post', truncating='post', value=self.vocab.pad_id)
         for idx, text in enumerate(newtextlist):
@@ -221,28 +221,26 @@ class Controller4Unseen(train_base.Base_Controller):
 
         assert len(text_seqs) == len(class_list)
 
-        train_order = list(range(len(text_seqs)))
-
-        random.shuffle(train_order)
+        # train_order = list(range(len(text_seqs)))
+        # random.shuffle(train_order)
 
         start_time = time.time()
         step_time = time.time()
 
         all_loss = np.zeros(1)
 
-        train_steps = len(train_order) // config.batch_size
+        train_steps = len(text_seqs) // config.batch_size
 
         if max_train_steps is not None and max_train_steps < train_steps:
             train_steps = max_train_steps
 
-        seen_class_list = self.get_seen_class()
-        print("Seen classes: %s" % seen_class_list)
+        train_order = random.sample(range(len(text_seqs)), k=train_steps * config.batch_size)
 
         for cstep in range(train_steps):
             global_step = cstep + epoch * train_steps
 
             # category_logits = [1 if randint(0, config.negative_sample) == 0 else 0 for _ in range(config.batch_size)]
-            category_logits = [1 if randint(0, config.negative_sample + epoch * 2) == 0 else 0 for _ in range(config.batch_size)]
+            category_logits = [1 if randint(0, config.negative_sample + epoch * config.negative_increase) == 0 else 0 for _ in range(config.batch_size)]
             # category_logits = [1 if randint(0, config.negative_sample + epoch * 3) == 0 else 0 for _ in range(config.batch_size)]
 
             true_class_id_mini = [class_list[idx] for idx in train_order[cstep * config.batch_size : (cstep + 1) * config.batch_size]]
@@ -312,7 +310,7 @@ class Controller4Unseen(train_base.Base_Controller):
 
         return all_loss / train_steps
 
-    def __test__(self, epoch, text_seqs, class_list):
+    def __test__(self, epoch, text_seqs, class_list, unseen_only=False):
 
         assert len(text_seqs) == len(class_list)
 
@@ -339,6 +337,9 @@ class Controller4Unseen(train_base.Base_Controller):
             # kg_vector_mat = np.zeros([config.batch_size, len(self.class_dict), config.max_length, config.kg_embedding_dim])
 
             for class_id in self.class_dict:
+
+                if unseen_only and class_id not in self.unseen_class:
+                    continue
 
                 class_id_mini = np.array([class_id] * config.batch_size)
 
@@ -418,7 +419,7 @@ class Controller4Unseen(train_base.Base_Controller):
         # return stats, prediction, ground_truth, align, kg_vector_full
         return stats, prediction, ground_truth, np.array([0]), np.array([0])
 
-    def controller(self, train_text_seqs, train_class_list, test_text_seqs, test_class_list, train_epoch=config.train_epoch, save_test_per_epoch=1):
+    def controller(self, train_text_seqs, train_class_list, test_text_seqs, test_class_list, rgroup, train_epoch=config.train_epoch, save_test_per_epoch=1):
 
         last_save_epoch = self.base_epoch
         global_epoch = self.base_epoch + 1
@@ -447,13 +448,16 @@ class Controller4Unseen(train_base.Base_Controller):
         for epoch in range(train_epoch + 1):
 
             # TODO: apply constrain on training set size
-            for _ in range(max(2 - 10 * global_epoch, 2)):
-                print("epoch %d %d" % (global_epoch, _))
+            # for _ in range(max(10 - 10 * global_epoch, 10)):
+            # config.small_epoch = 5 # 20news
+            # config.small_epoch = 1 # dbpedia
+            for _ in range(config.small_epoch):
+                print("epoch %d %d/%d" % (global_epoch, _ + 1, config.small_epoch))
                 self.__train__(
                     global_epoch,
                     train_text_seqs,
                     train_class_list,
-                    max_train_steps=3000
+                    max_train_steps=1000
                 )
 
             if global_epoch > self.base_epoch and global_epoch % save_test_per_epoch == 0:
@@ -467,22 +471,25 @@ class Controller4Unseen(train_base.Base_Controller):
 
                 # TODO: remove to get full test
                 print("[Test] Testing seen classes")
-                state_seen, pred_seen, gt_seen, align_seen, kg_vector_seen = self.__test__(
+                stats_seen, pred_seen, gt_seen, align_seen, kg_vector_seen = self.__test__(
                     global_epoch,
-                    [_ for idx, _ in enumerate(seen_test_text_seqs) if idx % 10 == 0],
-                    [_ for idx, _ in enumerate(seen_test_class_list) if idx % 10 == 0],
+                    [_ for idx, _ in enumerate(seen_test_text_seqs) if idx % 100 == 0],
+                    [_ for idx, _ in enumerate(seen_test_class_list) if idx % 100 == 0],
                 )
 
                 # TODO: remove to get full test
                 print("[Test] Testing unseen classes")
-                state_unseen, pred_unseen, gt_unseen, align_unseen, kg_vector_unseen = self.__test__(
+                stats_unseen, pred_unseen, gt_unseen, align_unseen, kg_vector_unseen = self.__test__(
                     global_epoch,
-                    [_ for idx, _ in enumerate(unseen_test_text_seqs) if idx % 4 == 0],
-                    [_ for idx, _ in enumerate(unseen_test_class_list) if idx % 4 == 0],
+                    [_ for idx, _ in enumerate(unseen_test_text_seqs) if idx % 10 == 0],
+                    [_ for idx, _ in enumerate(unseen_test_class_list) if idx % 10 == 0],
+                    unseen_only=True
                 )
 
                 np.savez(
                     self.log_save_dir + "test_%d" % global_epoch,
+                    seen_class=self.seen_class,
+                    unseen_class=self.unseen_class,
                     pred_seen=pred_seen,
                     pred_unseen=pred_unseen,
                     gt_seen=gt_seen,
@@ -491,16 +498,18 @@ class Controller4Unseen(train_base.Base_Controller):
                     align_unseen=align_unseen,
                     kg_vector_seen=kg_vector_seen,
                     kg_vector_unseen=kg_vector_unseen,
-                    )
+                )
                 # error.rejection_single_label(self.log_save_dir + "test_%d.npz" % global_epoch)
                 # error.classify_single_label(self.log_save_dir + "test_%d.npz" % global_epoch)
                 error.classify_single_label2(self.log_save_dir + "test_%d.npz" % global_epoch)
-                class_distance_matrix = np.loadtxt(config.zhang15_dbpedia_dir + 'class_distance.txt')
-                error.classify_adjust_single_label(self.log_save_dir + "test_%d.npz" % global_epoch, class_distance_matrix)
+                # error.classify_single_label_for_seen(self.log_save_dir + "test_%d.npz" % global_epoch, rgroup)
+                # error.classify_single_label_for_unseen(self.log_save_dir + "test_%d.npz" % global_epoch, rgroup)
+                # class_distance_matrix = np.loadtxt(config.zhang15_dbpedia_dir + 'class_distance.txt')
+                # error.classify_adjust_single_label(self.log_save_dir + "test_%d.npz" % global_epoch, class_distance_matrix)
 
             global_epoch += 1
 
-    def controller4test(self, test_text_seqs, test_class_list, unseen_class_list, base_epoch=None):
+    def controller4test(self, test_text_seqs, test_class_list, unseen_class_list, rgroup, base_epoch=None):
 
         self.unseen_class = unseen_class_list
 
@@ -524,12 +533,12 @@ class Controller4Unseen(train_base.Base_Controller):
             assert not self.check_seen(class_id)
 
         # TODO: remove to get full test
-        print("[Test] Testing seen classes")
-        state_seen, pred_seen, gt_seen, align_seen, kg_vector_seen = self.__test__(
-            global_epoch,
-            [_ for idx, _ in enumerate(seen_test_text_seqs) if idx % 1 == 0],
-            [_ for idx, _ in enumerate(seen_test_class_list) if idx % 1 == 0],
-        )
+        # print("[Test] Testing seen classes")
+        # state_seen, pred_seen, gt_seen, align_seen, kg_vector_seen = self.__test__(
+        #     global_epoch,
+        #     [_ for idx, _ in enumerate(seen_test_text_seqs) if idx % 1 == 0],
+        #     [_ for idx, _ in enumerate(seen_test_class_list) if idx % 1 == 0],
+        # )
 
         # TODO: remove to get full test
         print("[Test] Testing unseen classes")
@@ -537,30 +546,34 @@ class Controller4Unseen(train_base.Base_Controller):
             global_epoch,
             [_ for idx, _ in enumerate(unseen_test_text_seqs) if idx % 1 == 0],
             [_ for idx, _ in enumerate(unseen_test_class_list) if idx % 1 == 0],
+            unseen_only=True
         )
 
         np.savez(
-            self.log_save_dir + "test_%d" % global_epoch,
-            pred_seen=pred_seen,
+            self.log_save_dir + "test_full_%d" % global_epoch,
+            seen_class=self.seen_class,
+            unseen_class=self.unseen_class,
+            # pred_seen=pred_seen,
             pred_unseen=pred_unseen,
-            gt_seen=gt_seen,
+            # gt_seen=gt_seen,
             gt_unseen=gt_unseen,
-            align_seen=align_seen,
-            align_unseen=align_unseen,
-            kg_vector_seen=kg_vector_seen,
-            kg_vector_unseen=kg_vector_unseen,
+            # align_seen=align_seen,
+            # align_unseen=align_unseen,
+            # kg_vector_seen=kg_vector_seen,
+            # kg_vector_unseen=kg_vector_unseen,
             )
 
         # error.rejection_single_label(self.log_save_dir + "test_%d.npz" % global_epoch)
         # error.classify_single_label(self.log_save_dir + "test_%d.npz" % global_epoch)
-        error.classify_single_label2(self.log_save_dir + "test_%d.npz" % global_epoch)
-        class_distance_matrix = np.loadtxt(config.zhang15_dbpedia_dir + 'class_distance.txt')
-        error.classify_adjust_single_label(self.log_save_dir + "test_%d.npz" % global_epoch, class_distance_matrix)
+        # error.classify_single_label2(self.log_save_dir + "test_full_%d.npz" % global_epoch)
+        error.classify_single_label_for_unseen(self.log_save_dir + "test_full_%d.npz" % global_epoch, rgroup)
+        # class_distance_matrix = np.loadtxt(config.zhang15_dbpedia_dir + 'class_distance.txt')
+        # error.classify_adjust_single_label(self.log_save_dir + "test_%d.npz" % global_epoch, class_distance_matrix)
 
+def run_dbpedia():
 
-if __name__ == "__main__":
+    random_group = dataloader.get_random_group(config.zhang15_dbpedia_class_random_group_path)
 
-    # DBpedia
     vocab = dataloader.build_vocabulary_from_full_corpus(
         # config.zhang15_dbpedia_full_data_path, config.zhang15_dbpedia_vocab_path, column="selected", force_process=False,
         config.zhang15_dbpedia_full_data_path, config.zhang15_dbpedia_vocab_path, column="text", force_process=False,
@@ -612,7 +625,6 @@ if __name__ == "__main__":
         column="text", force_process=False
         # column="selected", force_process=False
         # column="selected_tfidf", force_process=False
-        # column="selected_tfidf", force_process=False
     )
 
     test_class_list = dataloader.load_data_class(
@@ -625,31 +637,31 @@ if __name__ == "__main__":
         column="text", force_process=False
         # column="selected", force_process=False
         # column="selected_tfidf", force_process=False
-        # column="selected_tfidf", force_process=False
     )
 
-    # print([vocab.id_to_word(wordid) for wordid in train_text_seqs[0][:10]])
-    # lenlist = [len(text) for text in test_text_seqs]
-    # print(np.mean(lenlist))  # full 49.52 selected_tfidf 32.03
-    # print(np.percentile(lenlist, 95))  # full 85 selected_tfidf 58
-    # print(np.percentile(lenlist, 90))  # full 80 selected_tfidf 53
-    # print(np.percentile(lenlist, 80))  # full 73 selected_tfidf 47
+    lenlist = [len(text) for text in test_text_seqs] + [len(text) for text in train_text_seqs]
+    print("Avg length of documents: ", np.mean(lenlist))
+    print("95% length of documents: ", np.percentile(lenlist, 95))
+    print("90% length of documents: ", np.percentile(lenlist, 90))
+    print("80% length of documents: ", np.percentile(lenlist, 80))
     # exit()
 
-    for i in range(10):
+    for i, rgroup in enumerate(random_group):
 
-        unseen_percentage = 0.25
-        max_length = 50
+        # if i == 0:
+        #     continue
+
+        max_length = 80
 
         with tf.Graph().as_default() as graph:
             tl.layers.clear_layers_name()
 
             mdl = model_unseen.Model4Unseen(
-                model_name="unseen_full_zhang15_dbpedia_kg3_cluster_3group_random%d_unseen%.2f_max%d_cnn_negative%dincrease2_randomtext" \
-                           % (i + 1, unseen_percentage, max_length, config.negative_sample),
+                model_name="unseen_full_zhang15_dbpedia_kg3_cluster_3group_random%d_unseen%s_max%d_cnn_negative%dincrease%d_randomtext" \
+                               % (i + 1, "-".join(str(_) for _ in rgroup[1]), max_length, config.negative_sample, config.negative_increase),
                 start_learning_rate=0.0001,
                 decay_rate=0.8,
-                decay_steps=5e3,
+                decay_steps=2e3,
                 max_length=max_length
             )
             # TODO: if unseen_classes are already selected, set randon_unseen_class=False and provide a list of unseen_classes
@@ -660,19 +672,243 @@ if __name__ == "__main__":
                 kg_vector_dict=kg_vector_dict,
                 word_embed_mat=glove_mat,
                 lemma=True,
-                random_unseen_class=True,
-                random_unseen_class_list=None,
+                random_unseen_class=False,
+                random_unseen_class_list=rgroup[1],
                 base_epoch=-1,
             )
-            ctl.controller(train_text_seqs, train_class_list, test_text_seqs, test_class_list, train_epoch=5)
-            # unseen_class_list = [4, 2, 11]
-            # ctl.controller4test(test_text_seqs, test_class_list, unseen_class_list, base_epoch=5)
-            ctl.controller4test(test_text_seqs, test_class_list, unseen_class_list=ctl.unseen_class, base_epoch=5)
+            ctl.controller(train_text_seqs, train_class_list, test_text_seqs, test_class_list, rgroup=rgroup, train_epoch=10)
+            # ctl.controller4test(test_text_seqs, test_class_list, unseen_class_list=ctl.unseen_class, rgroup=rgroup, base_epoch=9)
 
             ctl.sess.close()
     pass
 
+def run_20news():
 
+    random_group = dataloader.get_random_group(config.news20_class_random_group_path)
+
+    vocab = dataloader.build_vocabulary_from_full_corpus(
+        config.news20_full_data_path, config.news20_vocab_path, column="text", force_process=False,
+        min_word_count=10
+    )
+
+    glove_mat = dataloader.load_glove_word_vector(
+        config.word_embed_file_path, config.news20_word_embed_matrix_path, vocab, force_process=False
+    )
+    assert np.sum(glove_mat[vocab.start_id]) == 0
+    assert np.sum(glove_mat[vocab.end_id]) == 0
+    assert np.sum(glove_mat[vocab.unk_id]) == 0
+    assert np.sum(glove_mat[vocab.pad_id]) == 0
+
+    class_dict = dataloader.load_class_dict(
+        class_file=config.news20_class_label_path,
+        class_code_column="ClassCode",
+        class_name_column="ConceptNet"
+    )
+
+    # check class label in vocab and glove
+    for class_id in class_dict:
+        class_label = class_dict[class_id]
+        class_label_word_id = vocab.word_to_id(class_label)
+        assert class_label_word_id != vocab.unk_id
+        assert np.sum(glove_mat[class_label_word_id]) != 0
+
+    kg_vector_dict = dataloader.load_kg_vector(
+        config.news20_kg_vector_dir,
+        config.news20_kg_vector_prefix,
+        class_dict
+    )
+
+    print("Check NaN in csv ...")
+    check_nan_train = dataloader.check_df(config.news20_train_path)
+    check_nan_test = dataloader.check_df(config.news20_test_path)
+    print("Train NaN %s, Test NaN %s" % (check_nan_train, check_nan_test))
+    assert not check_nan_train
+    assert not check_nan_test
+
+    train_class_list = dataloader.load_data_class(
+        filename=config.news20_train_path,
+        column="class",
+    )
+
+    train_text_seqs = dataloader.load_data_from_text_given_vocab(
+        config.news20_train_path, vocab, config.news20_train_processed_path,
+        # column="text", force_process=False
+        # column="selected", force_process=False
+        column="selected_tfidf", force_process=False
+    )
+
+    test_class_list = dataloader.load_data_class(
+        filename=config.news20_test_path,
+        column="class",
+    )
+
+    test_text_seqs = dataloader.load_data_from_text_given_vocab(
+        config.news20_test_path, vocab, config.news20_test_processed_path,
+        # column="text", force_process=False
+        # column="selected", force_process=False
+        column="selected_tfidf", force_process=False
+    )
+
+    lenlist = [len(text) for text in test_text_seqs] + [len(text) for text in train_text_seqs]
+    print("Avg length of documents: ", np.mean(lenlist))
+    print("95% length of documents: ", np.percentile(lenlist, 95))
+    print("90% length of documents: ", np.percentile(lenlist, 90))
+    print("80% length of documents: ", np.percentile(lenlist, 80))
+    # exit()
+
+    for i, rgroup in enumerate(random_group):
+
+        # if i >= 5:
+        #     continue
+
+        max_length = 50
+
+        with tf.Graph().as_default() as graph:
+            tl.layers.clear_layers_name()
+
+            mdl = model_unseen.Model4Unseen(
+                # model_name="unseen_selected_tfidf_news20_kg3_cluster_3group_random%d_unseen%s_max%d_cnn_negative%dincrease%d_randomtext" \
+                # model_name="unseen_selected_tfidf_news20_kg3_cluster_3group_only_smallepoch5_random%d_unseen%s_max%d_cnn_negative%dincrease%d_randomtext" \
+                model_name="unseen_selected_tfidf_news20_kg3_cluster_3group_only_random%d_unseen%s_max%d_cnn_negative%dincrease%d_randomtext" \
+                               % (i + 1, "-".join(str(_) for _ in rgroup[1]), max_length, config.negative_sample, config.negative_increase),
+                start_learning_rate=0.0001,
+                decay_rate=0.5,
+                decay_steps=600,
+                max_length=max_length
+            )
+            # TODO: if unseen_classes are already selected, set randon_unseen_class=False and provide a list of unseen_classes
+            ctl = Controller4Unseen(
+                model=mdl,
+                vocab=vocab,
+                class_dict=class_dict,
+                kg_vector_dict=kg_vector_dict,
+                word_embed_mat=glove_mat,
+                lemma=True,
+                random_unseen_class=False,
+                random_unseen_class_list=rgroup[1],
+                base_epoch=-1,
+            )
+            # ctl.controller(train_text_seqs, train_class_list, test_text_seqs, test_class_list, rgroup=rgroup, train_epoch=10)
+            ctl.controller4test(test_text_seqs, test_class_list, unseen_class_list=ctl.unseen_class, rgroup=rgroup, base_epoch=6)
+
+            ctl.sess.close()
+    pass
+
+def run_amazon():
+
+    random_group = dataloader.get_random_group(config.chen14_elec_class_random_group_path)
+
+    vocab = dataloader.build_vocabulary_from_full_corpus(
+        config.chen14_elec_full_data_path, config.chen14_elec_vocab_path, column="text", force_process=False,
+        min_word_count=10
+    )
+
+    glove_mat = dataloader.load_glove_word_vector(
+        config.word_embed_file_path, config.chen14_elec_word_embed_matrix_path, vocab, force_process=False
+    )
+    assert np.sum(glove_mat[vocab.start_id]) == 0
+    assert np.sum(glove_mat[vocab.end_id]) == 0
+    assert np.sum(glove_mat[vocab.unk_id]) == 0
+    assert np.sum(glove_mat[vocab.pad_id]) == 0
+
+    class_dict = dataloader.load_class_dict(
+        class_file=config.chen14_elec_class_label_path,
+        class_code_column="ClassCode",
+        class_name_column="ConceptNet"
+    )
+
+    # check class label in vocab and glove
+    for class_id in class_dict:
+        class_label = class_dict[class_id]
+        class_label_word_id = vocab.word_to_id(class_label)
+        assert class_label_word_id != vocab.unk_id
+        assert np.sum(glove_mat[class_label_word_id]) != 0
+
+    kg_vector_dict = dataloader.load_kg_vector(
+        config.chen14_elec_kg_vector_dir,
+        config.chen14_elec_kg_vector_prefix,
+        class_dict
+    )
+
+    print("Check NaN in csv ...")
+    check_nan_train = dataloader.check_df(config.chen14_elec_train_path)
+    check_nan_test = dataloader.check_df(config.chen14_elec_test_path)
+    print("Train NaN %s, Test NaN %s" % (check_nan_train, check_nan_test))
+    assert not check_nan_train
+    assert not check_nan_test
+
+    train_class_list = dataloader.load_data_class(
+        filename=config.chen14_elec_train_path,
+        column="class",
+    )
+
+    train_text_seqs = dataloader.load_data_from_text_given_vocab(
+        config.chen14_elec_train_path, vocab, config.chen14_elec_train_processed_path,
+        column="text", force_process=False
+        # column="selected", force_process=False
+        # column="selected_tfidf", force_process=False
+    )
+
+    test_class_list = dataloader.load_data_class(
+        filename=config.chen14_elec_test_path,
+        column="class",
+    )
+
+    test_text_seqs = dataloader.load_data_from_text_given_vocab(
+        config.chen14_elec_test_path, vocab, config.chen14_elec_test_processed_path,
+        column="text", force_process=False
+        # column="selected", force_process=False
+        # column="selected_tfidf", force_process=False
+    )
+
+    lenlist = [len(text) for text in test_text_seqs] + [len(text) for text in train_text_seqs]
+    print("Avg length of documents: ", np.mean(lenlist))
+    print("95% length of documents: ", np.percentile(lenlist, 95))
+    print("90% length of documents: ", np.percentile(lenlist, 90))
+    print("80% length of documents: ", np.percentile(lenlist, 80))
+    # exit()
+
+    for i, rgroup in enumerate(random_group):
+
+        if i != 0:
+            continue
+
+        max_length = 100
+
+        with tf.Graph().as_default() as graph:
+            tl.layers.clear_layers_name()
+
+            mdl = model_unseen.Model4Unseen(
+                model_name="unseen_full_chen14_elec_kg3_cluster_3group_random%d_unseen%s_max%d_cnn_negative%dincrease%d_randomtext" \
+                           % (i + 1, "-".join(str(_) for _ in rgroup[1]), max_length, config.negative_sample, config.negative_increase),
+                start_learning_rate=0.0001,
+                decay_rate=0.5,
+                decay_steps=2000,
+                max_length=max_length
+            )
+            # TODO: if unseen_classes are already selected, set randon_unseen_class=False and provide a list of unseen_classes
+            ctl = Controller4Unseen(
+                model=mdl,
+                vocab=vocab,
+                class_dict=class_dict,
+                kg_vector_dict=kg_vector_dict,
+                word_embed_mat=glove_mat,
+                lemma=True,
+                random_unseen_class=False,
+                random_unseen_class_list=rgroup[1],
+                base_epoch=-1,
+            )
+            ctl.controller(train_text_seqs, train_class_list, test_text_seqs, test_class_list, rgroup=rgroup, train_epoch=10)
+            # ctl.controller4test(test_text_seqs, test_class_list, unseen_class_list=ctl.unseen_class, rgroup=rgroup, base_epoch=5)
+
+            ctl.sess.close()
+    pass
+
+if __name__ == "__main__":
+    # run_dbpedia()
+    # run_20news()
+    run_amazon()
+    pass
 
 
 

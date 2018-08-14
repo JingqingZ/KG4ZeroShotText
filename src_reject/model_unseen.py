@@ -80,30 +80,33 @@ class Model4Unseen(model_base.Base_Model):
 
 
             # TODO: place to change inputs
-            # net_in = ConcatLayer(
-            #     [net_word_embed, net_kg, net_class_label_embed],
-            #     concat_dim=-1,
-            #     name='concat_kg_word'
-            # )
+            # dbpedia and 20news
             net_in = ConcatLayer(
-                [net_word_embed, net_kg],
+                [net_word_embed, net_kg, net_class_label_embed],
                 concat_dim=-1,
-                name='concat_kg_word'
+                name='concat_vw_vwc_vc'
             )
 
             # net_in = ConcatLayer(
+            #     [net_word_embed, net_kg],
+            #     concat_dim=-1,
+            #     name='concat_vw_vwc'
+            # )
+            # net_in = ConcatLayer(
             #     [net_word_embed, net_class_label_embed],
             #     concat_dim=-1,
-            #     name='concat_kg_word'
+            #     name='concat_vw_vc'
             # )
             # net_in = ConcatLayer(
             #     [net_kg],
             #     concat_dim=-1,
-            #     name='concat_kg_word'
+            #     name='concat_vwc'
             # )
 
             filter_length = [2, 4, 8]
+            # dbpedia
             n_filter = 600
+            # n_filter = 200
 
             net_cnn_list = list()
 
@@ -119,37 +122,6 @@ class Model4Unseen(model_base.Base_Model):
                 )
                 net_cnn.outputs = tf.reduce_max(net_cnn.outputs, axis=1, name="global_maxpool%d" % fsz)
                 net_cnn_list.append(net_cnn)
-
-            '''
-            filter_length = [4, 8, 16]
-            n_filter = 200
-
-            net_cnn_list = list()
-
-            for fsz in filter_length:
-
-                net_cnn = Conv1d(
-                    net_in,
-                    n_filter=n_filter,
-                    filter_size=fsz,
-                    stride=1,
-                    act=tf.nn.relu,
-                    name="cnn%d" % fsz
-                )
-                net_cnn = MaxPool1d(net_cnn, 2, 2, padding="valid", name="maxpool%d" % fsz)
-
-                net_cnn = Conv1d(
-                    net_cnn,
-                    n_filter=n_filter ,
-                    filter_size=fsz // 2,
-                    stride=1,
-                    act=tf.nn.relu,
-                    name="cnn%d_2" % fsz
-                )
-
-                net_cnn.outputs = tf.reduce_max(net_cnn.outputs, axis=1, name="global_maxpool%d" % fsz)
-                net_cnn_list.append(net_cnn)
-            '''
 
             net_cnn = ConcatLayer(net_cnn_list, concat_dim=-1)
 
@@ -164,13 +136,13 @@ class Model4Unseen(model_base.Base_Model):
 
             net_fc = DropoutLayer(net_fc, keep=0.5, is_fix=True, is_train=is_train, name='drop2')
 
+            # dbpedia
             net_fc = DenseLayer(
                 net_fc,
                 n_units=100,
                 act=tf.nn.relu,
                 name="fc_2"
             )
-
             net_fc = DropoutLayer(net_fc, keep=0.5, is_fix=True, is_train=is_train, name='drop3')
 
             net_fc = DenseLayer(

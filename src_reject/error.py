@@ -2,6 +2,8 @@ import numpy as np
 
 import utils
 import config
+import dataloader
+import os
 
 def calculate_error(filename):
     data = np.load(filename)
@@ -68,7 +70,6 @@ def classify_multiple_label(filename):
         except:
             print("all threshold: %.5f: error" % (threshold))
         break
-
 
 def classify_single_label(filename):
     print("single label")
@@ -158,7 +159,6 @@ def classify_single_label(filename):
         print("all gen: error")
 
     return out_pred_seen, out_pred_unseen, pred_both, gt_both
-
 
 def classify_single_label2(filename):
     print("single label")
@@ -495,7 +495,6 @@ def classify_adjust_single_label(filename, class_distance_matrix):
             print("threshold: %.5f: error" % (threshold))
         return pred_matrix, stats, stats_seen, stats_unseen
 
-
 def classify_without_adjust_single_label(filename, class_distance_matrix):
     print("without adjust single label")
     data = np.load(filename)
@@ -569,17 +568,14 @@ def adjust_unseen_prob(prob_matrix, unseen_class_id, class_distance_matrix):
 
     return np.array(adjusted_unseen_prob).T
 
-
 def softmax(x):
     """Compute softmax values for each sets of scores in x."""
     return np.exp(x) / np.sum(np.exp(x), axis=0)
 
-
 def normalise(x):
     return x / np.sum(x, axis=0)
 
-
-if __name__ == "__main__":
+def error_deprecated():
     reject_list = list()
     num = 10
     for i in range(num):
@@ -604,6 +600,7 @@ if __name__ == "__main__":
         # filename = "../results/selected_tfidf_zhang15_dbpedia_kg3_cluster_3group_random%d_unseen0.25_max50_cnn_negative5increase2_randomtext/logs/test_5.npz" \
         # filename = "../results/selected_tfidf_zhang15_dbpedia_kg3_cluster_3group_only_random%d_unseen0.25_max50_cnn_negative5increase2_randomtext/logs/test_5.npz" \
         # filename = "../results/full_zhang15_dbpedia_kg3_cluster_3group_only_random%d_unseen0.25_max50_cnn_negative5increase2_randomtext/logs/test_5.npz" \
+        # filename = "../results/seen_full_zhang15_dbpedia_vwonly_random%d_unseen0.25_max50_cnn_negative5increase2_randomtext/logs/test_5.npz" \
         filename = "../results/unseen_full_zhang15_dbpedia_kg3_cluster_3group_random%d_unseen0.25_max50_cnn_negative5increase2_randomtext/logs/test_5.npz" \
                           % (i + 1)
 
@@ -664,7 +661,6 @@ if __name__ == "__main__":
     for pred in pred_dict:
         print(utils.dict_to_string_4_print(pred))
 
-
     # print("average uns tra ============================")
     # print(utils.dict_to_string_4_print(pred_dict[0]))
     # print("average see tra ============================")
@@ -679,3 +675,191 @@ if __name__ == "__main__":
 
     pass
 
+def classify_single_label_for_seen(filename, rgroup=None):
+    data = np.load(filename)
+
+    seen_class = np.nonzero(np.sum(data["gt_seen"], axis=0))[0]
+    seen_class += 1
+    # unseen_class = data["unseen_class"]
+
+    if rgroup is None:
+        assert np.array_equal(data["seen_class"], seen_class)
+    else:
+        assert np.array_equal(seen_class, np.array(rgroup[0]))
+    #  print("Seen classes:", seen_class)
+    # print("Unseen classes:", unseen_class)
+
+    stats = utils.get_statistics(data["pred_seen"], data["gt_seen"], single_label_pred=True)
+    print("seen: %s" % (utils.dict_to_string_4_print(stats)))
+    return stats
+
+def error_seen():
+    # random_group = dataloader.get_random_group(config.zhang15_dbpedia_class_random_group_path)
+    random_group = dataloader.get_random_group(config.news20_class_random_group_path)
+    # random_group = dataloader.get_random_group(config.chen14_elec_class_random_group_path)
+
+    overall_stats = dict()
+    print_string = ""
+    for i, rgroup in enumerate(random_group):
+        # filename = "../results/seen_full_zhang15_dbpedia_vwonly_random%d_unseen%s_max%d_cnn/logs/test_%d.npz" \
+        # filename = "../results/seen_full_chen14_elec_vwonly_random%d_unseen%s_max%d_cnn/logs/test_%d.npz" \
+        filename = "../results/seen_selected_tfidf_news20_vwonly_random%d_unseen%s_max%d_cnn/logs/test_%d.npz" \
+                   % (i + 1, "-".join(str(_) for _ in rgroup[1]), 200, 30 if i < 5 else 100)
+
+        classify_stats = classify_single_label_for_seen(filename)
+        for k in classify_stats:
+            v = classify_stats[k]
+            if k not in overall_stats:
+                overall_stats[k] = list()
+            overall_stats[k].append(v)
+        print_string += "%.3f/%.3f/%.3f," \
+                        % (1 - classify_stats["single-label-error"],
+                           classify_stats["micro-F1"],
+                           classify_stats["macro-F1"])
+
+    for k in overall_stats:
+        overall_stats[k] = np.mean(overall_stats[k])
+
+    print("=======")
+    print("overall: %s" % (utils.dict_to_string_4_print(overall_stats)))
+    print("for Google Sheets, split by comma")
+    print_string += "%.3f/%.3f/%.3f" \
+                    % (1 - overall_stats["single-label-error"],
+                       overall_stats["micro-F1"],
+                       overall_stats["macro-F1"])
+    print(print_string)
+
+def classify_single_label_for_unseen(filename, rgroup, printstats=True):
+    data = np.load(filename)
+
+    unseen_class = np.nonzero(np.sum(data["gt_unseen"], axis=0))[0]
+
+    for class_id in unseen_class:
+        assert class_id + 1 in rgroup[1]
+    assert len(rgroup[1]) == unseen_class.shape[0]
+    # print("Seen classes:", rgroup[0])
+    # print("Unseen classes:", rgroup[1])
+
+    pred_unseen = data["pred_unseen"]
+    for pidx, pred in enumerate(pred_unseen):
+        maxconf = -1
+        argmax = -1
+        for class_idx in range(len(pred)):
+            if pred[class_idx] > maxconf and class_idx in unseen_class:
+                argmax = class_idx
+                maxconf = pred[class_idx]
+        assert argmax in unseen_class
+        pred_unseen[pidx] = 0
+        pred_unseen[pidx, argmax] = 1
+
+    stats = utils.get_statistics(pred_unseen, data["gt_unseen"], single_label_pred=True)
+    if printstats:
+        print("unseen: %s" % (utils.dict_to_string_4_print(stats)))
+    return stats
+
+def error_unseen():
+    # random_group = dataloader.get_random_group(config.zhang15_dbpedia_class_random_group_path)
+    # random_group = dataloader.get_random_group(config.news20_class_random_group_path)
+    random_group = dataloader.get_random_group(config.chen14_elec_class_random_group_path)
+
+    for epoch in range(11):
+        # if epoch != 1:
+        #     continue
+
+        overall_stats = dict()
+        print_string = ""
+
+        for i, rgroup in enumerate(random_group):
+
+            # filename = "../results/unseen_full_zhang15_dbpedia_kg3_cluster_3group_random%d_unseen%s_max%d_cnn_negative%dincrease3_randomtext/logs/test_%d.npz" \
+            # filename = "../results/unseen_full_zhang15_dbpedia_kg3_cluster_3group_random%d_unseen%s_max%d_cnn_negative%dincrease3_randomtext/logs/test_full_%d.npz" \
+            # filename = "../results/unseen_selected_tfidf_news20_kg3_cluster_3group_only_smallepoch5_random%d_unseen%s_max%d_cnn_negative%dincrease%d_randomtext/logs/test_%d.npz" \
+            # filename = "../results/unseen_selected_tfidf_news20_kg3_cluster_3group_only_random%d_unseen%s_max%d_cnn_negative%dincrease%d_randomtext/logs/test_%d.npz" \
+            # filename = "../results/unseen_selected_tfidf_news20_kg3_cluster_3group_only_random%d_unseen%s_max%d_cnn_negative%dincrease%d_randomtext/logs/test_full_%d.npz" \
+            filename = "../results/unseen_full_chen14_elec_kg3_cluster_3group_random%d_unseen%s_max%d_cnn_negative%dincrease%d_randomtext/logs/test_%d.npz" \
+                        % (i + 1, "-".join(str(_) for _ in rgroup[1]), 100, 1, 1, epoch)
+                       # % (i + 1, "-".join(str(_) for _ in rgroup[1]), 50, 1, 1, epoch)
+
+            # print(filename)
+            # print(os.path.exists(filename))
+            # exit()
+            if not os.path.exists(filename):
+                continue
+
+            classify_stats = classify_single_label_for_unseen(filename, rgroup, False)
+            # classify_stats = classify_single_label_for_unseen(filename, rgroup, True)
+            for k in classify_stats:
+                v = classify_stats[k]
+                if k not in overall_stats:
+                    overall_stats[k] = list()
+                overall_stats[k].append(v)
+            print_string += "%.3f/%.3f/%.3f," \
+                            % (1 - classify_stats["single-label-error"],
+                               classify_stats["micro-F1"],
+                               classify_stats["macro-F1"])
+
+        for k in overall_stats:
+            overall_stats[k] = np.mean(overall_stats[k])
+
+        print("=======")
+        print(epoch, "overall: %s" % (utils.dict_to_string_4_print(overall_stats)))
+        print("for Google Sheets, split by comma")
+        print_string += "%.3f/%.3f/%.3f" \
+                        % (1 - overall_stats["single-label-error"],
+                           overall_stats["micro-F1"],
+                           overall_stats["macro-F1"])
+        print(print_string)
+
+def error_unseen_best():
+    random_group = dataloader.get_random_group(config.zhang15_dbpedia_class_random_group_path)
+    # random_group = dataloader.get_random_group(config.news20_class_random_group_path)
+    # random_group = dataloader.get_random_group(config.chen14_elec_class_random_group_path)
+
+    overall_stats = dict()
+    print_string = ""
+
+    for i, rgroup in enumerate(random_group):
+
+        best_stats = None
+        for epoch in range(11):
+            filename = "../results/unseen_full_zhang15_dbpedia_kg3_cluster_3group_random%d_unseen%s_max%d_cnn_negative%dincrease3_randomtext/logs/test_%d.npz" \
+                       % (i + 1, "-".join(str(_) for _ in rgroup[1]), 80, 5, epoch)
+
+            if not os.path.exists(filename):
+                continue
+
+            classify_stats = classify_single_label_for_unseen(filename, rgroup)
+
+            if best_stats == None or classify_stats["single-label-error"] < best_stats["single-label-error"]:
+                best_stats = classify_stats
+
+        for k in best_stats:
+            v = best_stats[k]
+            if k not in overall_stats:
+                overall_stats[k] = list()
+            overall_stats[k].append(v)
+        print_string += "%.3f/%.3f/%.3f," \
+                        % (1 - best_stats["single-label-error"],
+                           best_stats["micro-F1"],
+                           best_stats["macro-F1"])
+
+    for k in overall_stats:
+        overall_stats[k] = np.mean(overall_stats[k])
+
+    print("=======")
+    print("overall: %s" % (utils.dict_to_string_4_print(overall_stats)))
+    # print("for Google Sheets, split by comma")
+    print_string += "%.3f/%.3f/%.3f" \
+                    % (1 - overall_stats["single-label-error"],
+                       overall_stats["micro-F1"],
+                       overall_stats["macro-F1"])
+    print(print_string)
+
+
+if __name__ == "__main__":
+    # error_deprecated()
+    # error_seen()
+    error_unseen()
+    # error_unseen_best()
+    # classify_single_label_for_seen("../results/unseen_selected_tfidf_news20_kg3_cluster_3group_only_random2_unseen20-4-14-2-10_max200_cnn_negative5increase3_randomtext/logs/test_0.npz")
+    pass
