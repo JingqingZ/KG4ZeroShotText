@@ -43,9 +43,29 @@ class Model4Unseen(model_base.Base_Model):
         self.kg_vector = tf.placeholder(dtype=tf.float32, shape=[config.batch_size, self.max_length, self.kg_embedding_dim], name="kg_score")
         self.category_logits = tf.placeholder(dtype=tf.float32, shape=[config.batch_size, 1], name="category_logits")
 
+        # self.class_label_single = tf.placeholder(dtype=tf.float32, shape=[config.batch_size, self.word_embedding_dim], name="class_label_single")
+        # self.positive_encode_seqs = tf.placeholder(dtype=tf.float32, shape=[config.batch_size, self.max_length, self.word_embedding_dim], name="encode_seqs_positive")
+        # self.positive_class_label_seqs = tf.placeholder(dtype=tf.float32, shape=[config.batch_size, self.max_length, self.word_embedding_dim], name="class_label_seqs_positive")
+        # self.positive_kg_vector = tf.placeholder(dtype=tf.float32, shape=[config.batch_size, self.max_length, self.kg_embedding_dim], name="kg_score_positive")
+
+        # self.negative_encode_seqs = tf.placeholder(dtype=tf.float32, shape=[config.batch_size, self.max_length, self.word_embedding_dim], name="encode_seqs_negative")
+        # self.negative_class_label_seqs = tf.placeholder(dtype=tf.float32, shape=[config.batch_size, self.max_length, self.word_embedding_dim], name="class_label_seqs_negative")
+        # self.negative_kg_vector = tf.placeholder(dtype=tf.float32, shape=[config.batch_size, self.max_length, self.kg_embedding_dim], name="kg_score_negative")
+
     def __create_model__(self):
-        self.train_net = self.__get_network__(self.model_name, self.encode_seqs, self.class_label_seqs, self.kg_vector, reuse=False, is_train=True)
-        self.test_net = self.__get_network__(self.model_name, self.encode_seqs, self.class_label_seqs, self.kg_vector, reuse=True, is_train=False)
+        if config.model == "cnnfc":
+            self.train_net = self.__get_network_cnnfc__(self.model_name, self.encode_seqs, self.class_label_seqs, reuse=False, is_train=True)
+            self.test_net = self.__get_network_cnnfc__(self.model_name, self.encode_seqs, self.class_label_seqs, reuse=True, is_train=False)
+        elif config.model == "rnnfc":
+            self.train_net = self.__get_network_rnnfc__(self.model_name, self.encode_seqs, self.class_label_seqs, reuse=False, is_train=True)
+            self.test_net = self.__get_network_rnnfc__(self.model_name, self.encode_seqs, self.class_label_seqs, reuse=True, is_train=False)
+        else:
+            self.train_net, self.train_net_cnn = self.__get_network__(self.model_name, self.encode_seqs, self.class_label_seqs, self.kg_vector, reuse=False, is_train=True)
+            self.test_net, self.test_net_cnn = self.__get_network__(self.model_name, self.encode_seqs, self.class_label_seqs, self.kg_vector, reuse=True, is_train=False)
+
+        # self.positive_train_net, self.positive_train_net_cnn = self.__get_network__(self.model_name, self.encode_seqs, self.class_label_seqs, self.kg_vector, reuse=False, is_train=True)
+        # self.positive_test_net, self.positive_test_net_cnn = self.__get_network__(self.model_name, self.encode_seqs, self.class_label_seqs, self.kg_vector, reuse=True, is_train=False)
+
 
     def __get_network__(self, model_name, encode_seqs, class_label_seqs, kg_vector, reuse=False, is_train=True):
         with tf.variable_scope(model_name, reuse=reuse):
@@ -78,30 +98,39 @@ class Model4Unseen(model_base.Base_Model):
                 name="reshape_kg_2"
             )
 
-
-            # TODO: place to change inputs
-            # dbpedia and 20news
-            net_in = ConcatLayer(
-                [net_word_embed, net_kg, net_class_label_embed],
-                concat_dim=-1,
-                name='concat_vw_vwc_vc'
-            )
-
-            # net_in = ConcatLayer(
-            #     [net_word_embed, net_kg],
-            #     concat_dim=-1,
-            #     name='concat_vw_vwc'
-            # )
-            # net_in = ConcatLayer(
-            #     [net_word_embed, net_class_label_embed],
-            #     concat_dim=-1,
-            #     name='concat_vw_vc'
-            # )
-            # net_in = ConcatLayer(
-            #     [net_kg],
-            #     concat_dim=-1,
-            #     name='concat_vwc'
-            # )
+            if config.model == "vwvcvkg":
+                # dbpedia and 20news
+                net_in = ConcatLayer(
+                    [net_word_embed, net_kg, net_class_label_embed],
+                    concat_dim=-1,
+                    name='concat_vw_vwc_vc'
+                )
+            elif config.model == "vwvc":
+                net_in = ConcatLayer(
+                    [net_word_embed, net_class_label_embed],
+                    concat_dim=-1,
+                    name='concat_vw_vc'
+                )
+            elif config.model == "vwvkg":
+                net_in = ConcatLayer(
+                    [net_word_embed, net_kg],
+                    concat_dim=-1,
+                    name='concat_vw_vwc'
+                )
+            elif config.model == "vcvkg":
+                net_in = ConcatLayer(
+                    [net_class_label_embed, net_kg],
+                    concat_dim=-1,
+                    name='concat_vc_vwc'
+                )
+            elif config.model == "kgonly":
+                net_in = ConcatLayer(
+                    [net_kg],
+                    concat_dim=-1,
+                    name='concat_vwc'
+                )
+            else:
+                raise Exception("config.model value error")
 
             filter_length = [2, 4, 8]
             # dbpedia
@@ -125,10 +154,92 @@ class Model4Unseen(model_base.Base_Model):
 
             net_cnn = ConcatLayer(net_cnn_list, concat_dim=-1)
 
-            net_cnn = DropoutLayer(net_cnn, keep=0.5, is_fix=True, is_train=is_train, name='drop1')
+            net_fc = DropoutLayer(net_cnn, keep=0.5, is_fix=True, is_train=is_train, name='drop1')
 
             net_fc = DenseLayer(
-                net_cnn,
+                net_fc,
+                n_units=400,
+                act=tf.nn.relu,
+                name="fc_1"
+            )
+
+            net_fc = DropoutLayer(net_fc, keep=0.5, is_fix=True, is_train=is_train, name='drop2')
+
+            # dbpedia
+            net_fc = DenseLayer(
+                net_fc,
+                n_units=100,
+                act=tf.nn.relu,
+                name="fc_2"
+            )
+            net_fc = DropoutLayer(net_fc, keep=0.5, is_fix=True, is_train=is_train, name='drop3')
+
+            net_fc = DenseLayer(
+                net_fc,
+                n_units=1,
+                act=tf.nn.sigmoid,
+                name="fc_3"
+            )
+        return net_fc, net_cnn
+
+    def __get_network_cnnfc__(self, model_name, encode_seqs, class_label_seqs, reuse=False, is_train=True):
+        with tf.variable_scope(model_name, reuse=reuse):
+            tl.layers.set_name_reuse(reuse)
+
+            net_word_embed = InputLayer(
+                inputs=encode_seqs,
+                name="in_word_embed"
+            )
+
+            net_class_label_embed = InputLayer(
+                inputs=class_label_seqs,
+                name="in_class_label_embed"
+            )
+
+            net_class_label_embed.outputs = tf.slice(
+                net_class_label_embed.outputs,
+                [0, 0, 0],
+                [config.batch_size, 1, self.word_embedding_dim],
+                name="slice_word"
+            )
+
+            net_class_label_embed.outputs = tf.squeeze(
+                net_class_label_embed.outputs,
+                name="squeeze_word"
+            )
+
+            net_in = ConcatLayer(
+                [net_word_embed],
+                concat_dim=-1,
+                name='concat_vw'
+            )
+
+            filter_length = [2, 4, 8]
+            # dbpedia
+            n_filter = 600
+            # n_filter = 200
+
+            net_cnn_list = list()
+
+            for fsz in filter_length:
+
+                net_cnn = Conv1d(
+                    net_in,
+                    n_filter=n_filter,
+                    filter_size=fsz,
+                    stride=1,
+                    act=tf.nn.relu,
+                    name="cnn%d" % fsz
+                )
+                net_cnn.outputs = tf.reduce_max(net_cnn.outputs, axis=1, name="global_maxpool%d" % fsz)
+                net_cnn_list.append(net_cnn)
+
+            net_cnn = ConcatLayer(net_cnn_list + [net_class_label_embed], concat_dim=-1)
+
+            net_fc = DropoutLayer(net_cnn, keep=0.5, is_fix=True, is_train=is_train, name='drop1')
+
+            net_fc = DenseLayer(
+                net_fc,
                 n_units=400,
                 act=tf.nn.relu,
                 name="fc_1"
@@ -152,6 +263,78 @@ class Model4Unseen(model_base.Base_Model):
                 name="fc_3"
             )
         return net_fc
+
+    def __get_network_rnnfc__(self, model_name, encode_seqs, class_label_seqs, reuse=False, is_train=True):
+        with tf.variable_scope(model_name, reuse=reuse):
+            tl.layers.set_name_reuse(reuse)
+
+            net_word_embed = InputLayer(
+                inputs=encode_seqs,
+                name="in_word_embed"
+            )
+
+            net_class_label_embed = InputLayer(
+                inputs=class_label_seqs,
+                name="in_class_label_embed"
+            )
+
+            net_class_label_embed.outputs = tf.slice(
+                net_class_label_embed.outputs,
+                [0, 0, 0],
+                [config.batch_size, 1, self.word_embedding_dim],
+                name="slice_word"
+            )
+
+            net_class_label_embed.outputs = tf.squeeze(
+                net_class_label_embed.outputs,
+                name="squeeze_word"
+            )
+
+            net_in = ConcatLayer(
+                [net_word_embed],
+                concat_dim=-1,
+                name='concat_vw'
+            )
+
+            net_rnn = RNNLayer(
+                net_in,
+                cell_fn=tf.contrib.rnn.BasicLSTMCell,
+                n_hidden = 256,
+                n_steps = self.max_length,
+                return_last = True,
+                name = 'lstm'
+            )
+
+            net_fc = ConcatLayer([net_rnn, net_class_label_embed], concat_dim=-1)
+
+            net_fc = DropoutLayer(net_fc, keep=0.5, is_fix=True, is_train=is_train, name='drop1')
+
+            net_fc = DenseLayer(
+                net_fc,
+                n_units=400,
+                act=tf.nn.relu,
+                name="fc_1"
+            )
+
+            net_fc = DropoutLayer(net_fc, keep=0.5, is_fix=True, is_train=is_train, name='drop2')
+
+            # dbpedia
+            net_fc = DenseLayer(
+                net_fc,
+                n_units=100,
+                act=tf.nn.relu,
+                name="fc_2"
+            )
+            net_fc = DropoutLayer(net_fc, keep=0.5, is_fix=True, is_train=is_train, name='drop3')
+
+            net_fc = DenseLayer(
+                net_fc,
+                n_units=1,
+                act=tf.nn.sigmoid,
+                name="fc_3"
+            )
+        return net_fc
+
 
     def __create_loss__(self):
         self.train_loss = tl.cost.binary_cross_entropy(

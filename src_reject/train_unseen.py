@@ -95,20 +95,33 @@ class Controller4Unseen(train_base.Base_Controller):
         print("Text seqs of seen classes: %d" % len(seen_text_seqs))
         return seen_text_seqs, seen_class_list
 
-    def get_text_of_unseen_class(self, text_seqs, class_list):
+    def get_text_of_unseen_class(self, text_seqs, class_list, augdata=False):
         print("Getting text of unseen classes")
         assert len(text_seqs) == len(class_list)
         unseen_text_seqs = list()
         unseen_class_list = list()
 
+        unseen_class_counter = dict()
+        for c in self.unseen_class:
+            unseen_class_counter[c] = 0
+
         with progressbar.ProgressBar(max_value=len(text_seqs)) as bar:
             for idx, text in enumerate(text_seqs):
                 if not self.check_seen(class_list[idx]):
+
+                    # control the number of augmented data
+                    if augdata and unseen_class_counter[class_list[idx]] >= config.augmentation:
+                        continue
+
+                    unseen_class_counter[class_list[idx]] += 1
+
                     unseen_text_seqs.append(text)
                     unseen_class_list.append(class_list[idx])
                 bar.update(idx)
         assert len(unseen_text_seqs) == len(unseen_class_list)
         print("Text seqs of unseen classes: %d" % len(unseen_text_seqs))
+        if augdata:
+            print("Num of each unseen class {%s}" % (", ".join(["%s:%s" % (k, v) for k, v in unseen_class_counter.items()])))
         return unseen_text_seqs, unseen_class_list
 
     def prepro_encode(self, textlist):
@@ -143,7 +156,8 @@ class Controller4Unseen(train_base.Base_Controller):
 
         for idx, logit in enumerate(category_logits):
             true_class_id = true_class_id_list[idx]
-            assert self.check_seen(true_class_id)
+            if config.augmentation == 0:
+                assert self.check_seen(true_class_id)
             if logit == 1:
                 class_id_list.append(true_class_id)
             elif logit == 0:
@@ -260,37 +274,35 @@ class Controller4Unseen(train_base.Base_Controller):
             # category_logits = [int(class_id_mini[i] == true_class_id_mini[i]) for i in range(config.batch_size)]
 
             class_label_embed_mini = self.get_class_label_embed(class_id_mini)
-            kg_vector_seqs_mini = self.get_kg_vector_given_class(encode_seqs_id_mini, class_id_mini)
 
-            # np.set_printoptions(threshold=np.nan)
-            # print("encode", encode_seqs_mat_mini[:2, :20, :10])
-            # print("class", class_label_embed_mini[:2, :10, :10])
-            # print("kg", np.sum(kg_vector_seqs_mini[:2, :20, :10], axis=-1))
-            # print("encode", encode_seqs_id_mini[:2, :10])
-            # print("encode", [[self.vocab.id_to_word(word_id) for word_id in text] for text in encode_seqs_id_mini[:2, :20]])
-            # print("class", [self.class_dict[class_id] for class_id in class_id_mini[:2]])
-            # print("class", class_id_mini[:2])
-            # print("true_class", true_class_id_mini[:2])
-            # print("cate", category_logits[:2])
+            if config.model == "cnnfc" or config.model == "rnnfc":
+                results = self.sess.run([
+                    self.model.train_loss,
+                    self.model.train_net.outputs,
+                    self.model.learning_rate,
+                    self.model.optim
+                ], feed_dict={
+                    self.model.encode_seqs: encode_seqs_mat_mini,
+                    self.model.class_label_seqs: class_label_embed_mini,
+                    self.model.category_logits: np.expand_dims(np.array(category_logits), -1),
+                    self.model.global_step: global_step,
+                })
 
-            results = self.sess.run([
-                self.model.train_loss,
-                self.model.train_net.outputs,
-                # self.model.train_align.outputs,
-                self.model.learning_rate,
-                self.model.optim
-            ], feed_dict={
-                self.model.encode_seqs: encode_seqs_mat_mini,
-                self.model.class_label_seqs: class_label_embed_mini,
-                self.model.kg_vector: kg_vector_seqs_mini,
-                self.model.category_logits: np.expand_dims(np.array(category_logits), -1),
-                self.model.global_step: global_step,
-            })
-            # print("model", time.time() - step_time)
-            # print("out", results[1][:2])
-            # print("align", results[2][:2, :10])
-            # print("trainloss", results[0])
-            # exit()
+            else:
+                kg_vector_seqs_mini = self.get_kg_vector_given_class(encode_seqs_id_mini, class_id_mini)
+                results = self.sess.run([
+                    self.model.train_loss,
+                    self.model.train_net.outputs,
+                    # self.model.train_align.outputs,
+                    self.model.learning_rate,
+                    self.model.optim
+                ], feed_dict={
+                    self.model.encode_seqs: encode_seqs_mat_mini,
+                    self.model.class_label_seqs: class_label_embed_mini,
+                    self.model.kg_vector: kg_vector_seqs_mini,
+                    self.model.category_logits: np.expand_dims(np.array(category_logits), -1),
+                    self.model.global_step: global_step,
+                })
 
             all_loss += results[:1]
 
@@ -349,18 +361,28 @@ class Controller4Unseen(train_base.Base_Controller):
                 for b in range(config.batch_size):
                     category_logits[b, 0] = int(class_id == true_class_id_mini[b])
 
-                kg_vector_seqs_mini = self.get_kg_vector_given_class(encode_seqs_id_mini, class_id_mini)
+                if config.model == "cnnfc" or config.model == "rnnfc":
+                    test_loss, pred  = self.sess.run([
+                        self.model.test_loss,
+                        self.model.test_net.outputs,
+                    ], feed_dict={
+                        self.model.encode_seqs: encode_seqs_mat_mini,
+                        self.model.class_label_seqs: class_label_embed_mini,
+                        self.model.category_logits: category_logits,
+                    })
+                else:
+                    kg_vector_seqs_mini = self.get_kg_vector_given_class(encode_seqs_id_mini, class_id_mini)
 
-                test_loss, pred  = self.sess.run([
-                    self.model.test_loss,
-                    self.model.test_net.outputs,
-                    # self.model.test_align.outputs,
-                ], feed_dict={
-                    self.model.encode_seqs: encode_seqs_mat_mini,
-                    self.model.class_label_seqs: class_label_embed_mini,
-                    self.model.kg_vector: kg_vector_seqs_mini,
-                    self.model.category_logits: category_logits,
-                })
+                    test_loss, pred  = self.sess.run([
+                        self.model.test_loss,
+                        self.model.test_net.outputs,
+                        # self.model.test_align.outputs,
+                    ], feed_dict={
+                        self.model.encode_seqs: encode_seqs_mat_mini,
+                        self.model.class_label_seqs: class_label_embed_mini,
+                        self.model.kg_vector: kg_vector_seqs_mini,
+                        self.model.category_logits: category_logits,
+                    })
 
                 # print(test_loss)
 
@@ -419,7 +441,7 @@ class Controller4Unseen(train_base.Base_Controller):
         # return stats, prediction, ground_truth, align, kg_vector_full
         return stats, prediction, ground_truth, np.array([0]), np.array([0])
 
-    def controller(self, train_text_seqs, train_class_list, test_text_seqs, test_class_list, rgroup, train_epoch=config.train_epoch, save_test_per_epoch=1):
+    def controller(self, train_text_seqs, train_class_list, train_aug_text_seqs, train_aug_class_list, test_text_seqs, test_class_list, rgroup, train_epoch=config.train_epoch, save_test_per_epoch=1):
 
         last_save_epoch = self.base_epoch
         global_epoch = self.base_epoch + 1
@@ -431,6 +453,10 @@ class Controller4Unseen(train_base.Base_Controller):
             )
 
         train_text_seqs, train_class_list = self.get_text_of_seen_class(train_text_seqs, train_class_list)
+        train_aug_text_seqs, train_aug_class_list = self.get_text_of_unseen_class(train_aug_text_seqs, train_aug_class_list, augdata=True)
+
+        assert len(train_aug_class_list) == len(train_aug_text_seqs)
+        assert len(train_aug_class_list) <= config.augmentation * len(self.unseen_class)
 
         seen_test_text_seqs, seen_test_class_list = self.get_text_of_seen_class(test_text_seqs, test_class_list)
         unseen_test_text_seqs, unseen_test_class_list = self.get_text_of_unseen_class(test_text_seqs, test_class_list)
@@ -453,12 +479,21 @@ class Controller4Unseen(train_base.Base_Controller):
             # config.small_epoch = 1 # dbpedia
             for _ in range(config.small_epoch):
                 print("epoch %d %d/%d" % (global_epoch, _ + 1, config.small_epoch))
-                self.__train__(
-                    global_epoch,
-                    train_text_seqs,
-                    train_class_list,
-                    max_train_steps=1000
-                )
+                if config.augmentation > 0:
+                    self.__train__(
+                        global_epoch,
+                        train_text_seqs + train_aug_text_seqs,
+                        train_class_list + train_aug_class_list,
+                        max_train_steps=1000
+                    )
+                else:
+                    self.__train__(
+                        global_epoch,
+                        train_text_seqs,
+                        train_class_list,
+                        max_train_steps=1000
+                    )
+
 
             if global_epoch > self.base_epoch and global_epoch % save_test_per_epoch == 0:
                 self.save_model(
@@ -639,6 +674,22 @@ def run_dbpedia():
         # column="selected_tfidf", force_process=False
     )
 
+    if config.augmentation > 0:
+        train_aug_class_list = dataloader.load_data_class(
+            filename=config.zhang15_dbpedia_train_aug_path,
+            column="to_class",
+        )
+
+        train_aug_text_seqs = dataloader.load_data_from_text_given_vocab(
+            config.zhang15_dbpedia_train_aug_path, vocab, config.zhang15_dbpedia_train_aug_processed_path,
+            column="text", force_process=False
+        )
+    else:
+        train_aug_class_list = []
+        train_aug_text_seqs = []
+
+    assert len(train_aug_class_list) == len(train_aug_text_seqs)
+
     lenlist = [len(text) for text in test_text_seqs] + [len(text) for text in train_text_seqs]
     print("Avg length of documents: ", np.mean(lenlist))
     print("95% length of documents: ", np.percentile(lenlist, 95))
@@ -648,8 +699,8 @@ def run_dbpedia():
 
     for i, rgroup in enumerate(random_group):
 
-        # if i == 0:
-        #     continue
+        if i + 1 < config.random_group_start_idx:
+            continue
 
         max_length = 80
 
@@ -657,8 +708,10 @@ def run_dbpedia():
             tl.layers.clear_layers_name()
 
             mdl = model_unseen.Model4Unseen(
-                model_name="unseen_full_zhang15_dbpedia_kg3_cluster_3group_random%d_unseen%s_max%d_cnn_negative%dincrease%d_randomtext" \
-                               % (i + 1, "-".join(str(_) for _ in rgroup[1]), max_length, config.negative_sample, config.negative_increase),
+                # model_name="unseen_full_zhang15_dbpedia_kg3_cluster_3group_random%d_unseen%s_max%d_cnn_negative%dincrease%d_randomtext_aug%d" \
+                # model_name="unseen_full_zhang15_dbpedia_kg3_cluster_3group_kgonly_random%d_unseen%s_max%d_cnn_negative%dincrease%d_randomtext_aug%d" \
+                model_name="unseen_full_zhang15_dbpedia_kg3_cluster_3group_%s_random%d_unseen%s_max%d_cnn_negative%dincrease%d_randomtext_aug%d" \
+                               % (config.model, i + 1, "-".join(str(_) for _ in rgroup[1]), max_length, config.negative_sample, config.negative_increase, config.augmentation),
                 start_learning_rate=0.0001,
                 decay_rate=0.8,
                 decay_steps=2e3,
@@ -676,8 +729,14 @@ def run_dbpedia():
                 random_unseen_class_list=rgroup[1],
                 base_epoch=-1,
             )
-            ctl.controller(train_text_seqs, train_class_list, test_text_seqs, test_class_list, rgroup=rgroup, train_epoch=10)
-            # ctl.controller4test(test_text_seqs, test_class_list, unseen_class_list=ctl.unseen_class, rgroup=rgroup, base_epoch=9)
+            if config.global_is_train:
+                ctl.controller(train_text_seqs, train_class_list,
+                               train_aug_text_seqs, train_aug_class_list,
+                               test_text_seqs, test_class_list,
+                               rgroup=rgroup, train_epoch=10)
+            else:
+                ctl.controller4test(test_text_seqs, test_class_list, unseen_class_list=ctl.unseen_class,
+                                    rgroup=rgroup, base_epoch=config.global_test_base_epoch)
 
             ctl.sess.close()
     pass
@@ -758,8 +817,8 @@ def run_20news():
 
     for i, rgroup in enumerate(random_group):
 
-        # if i >= 5:
-        #     continue
+        if i + 1 < config.random_group_start_idx:
+            continue
 
         max_length = 50
 
@@ -769,8 +828,9 @@ def run_20news():
             mdl = model_unseen.Model4Unseen(
                 # model_name="unseen_selected_tfidf_news20_kg3_cluster_3group_random%d_unseen%s_max%d_cnn_negative%dincrease%d_randomtext" \
                 # model_name="unseen_selected_tfidf_news20_kg3_cluster_3group_only_smallepoch5_random%d_unseen%s_max%d_cnn_negative%dincrease%d_randomtext" \
-                model_name="unseen_selected_tfidf_news20_kg3_cluster_3group_only_random%d_unseen%s_max%d_cnn_negative%dincrease%d_randomtext" \
-                               % (i + 1, "-".join(str(_) for _ in rgroup[1]), max_length, config.negative_sample, config.negative_increase),
+                # model_name="unseen_selected_tfidf_news20_kg3_cluster_3group_kgonly_random%d_unseen%s_max%d_cnn_negative%dincrease%d_randomtext_aug%d" \
+                model_name="unseen_selected_tfidf_news20_kg3_cluster_3group_%s_random%d_unseen%s_max%d_cnn_negative%dincrease%d_randomtext_aug%d" \
+                               % (config.model, i + 1, "-".join(str(_) for _ in rgroup[1]), max_length, config.negative_sample, config.negative_increase, config.augmentation),
                 start_learning_rate=0.0001,
                 decay_rate=0.5,
                 decay_steps=600,
@@ -788,8 +848,11 @@ def run_20news():
                 random_unseen_class_list=rgroup[1],
                 base_epoch=-1,
             )
-            # ctl.controller(train_text_seqs, train_class_list, test_text_seqs, test_class_list, rgroup=rgroup, train_epoch=10)
-            ctl.controller4test(test_text_seqs, test_class_list, unseen_class_list=ctl.unseen_class, rgroup=rgroup, base_epoch=6)
+            if config.global_is_train:
+                ctl.controller(train_text_seqs, train_class_list, [], [], test_text_seqs, test_class_list, rgroup=rgroup, train_epoch=10)
+            else:
+                ctl.controller4test(test_text_seqs, test_class_list, unseen_class_list=ctl.unseen_class,
+                                    rgroup=rgroup, base_epoch=config.global_test_base_epoch)
 
             ctl.sess.close()
     pass
@@ -905,9 +968,13 @@ def run_amazon():
     pass
 
 if __name__ == "__main__":
-    # run_dbpedia()
-    # run_20news()
-    run_amazon()
+
+    if config.dataset == "dbpedia":
+        run_dbpedia()
+    elif config.dataset == "20news":
+        run_20news()
+    else:
+        raise Exception("config.dataset %s not found" % config.dataset)
     pass
 
 

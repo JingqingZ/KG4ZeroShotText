@@ -127,7 +127,10 @@ def build_vocabulary_from_full_corpus(filename, vocab_file, column, min_word_cou
     return vocab
 
 def load_data_class(filename, column):
-    df = pd.read_csv(filename, index_col=0)
+    try:
+        df = pd.read_csv(filename, index_col=0)
+    except:
+        df = pd.read_csv(filename, index_col=0, encoding="latin-1")
     data_class_list = df[column].tolist()
     return data_class_list
 
@@ -151,7 +154,10 @@ def load_data_from_text_given_vocab(filename, vocab, processed_file, column, for
 
     else:
 
-        df = pd.read_csv(filename, index_col=0)
+        try:
+            df = pd.read_csv(filename, index_col=0)
+        except:
+            df = pd.read_csv(filename, index_col=0, encoding="latin-1")
 
         full_text_list = get_text_list(df, column)
         full_text_list = preprocess(full_text_list)

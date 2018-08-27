@@ -839,6 +839,11 @@ def check_tf_idf():
     df["count"] = df["nounadj_selected_tfidf"].str.split().apply(len)
     print(np.percentile(df["count"], 50))
 
+def check_class_cluster():
+    class_clusters = pickle.load(open(config.news20_class_cluster_path, "rb"))
+    for class_label in class_clusters:
+        print(class_label, class_clusters[class_label])
+
 if __name__ == "__main__":
     # kg_vector_1 = pickle.load(open("../wordEmbeddings/KG_VECTORS_1.pickle", "rb"))
     # print(kg_vector_1.keys())
@@ -927,7 +932,13 @@ if __name__ == "__main__":
     # generate_random_group(config.news20_class_label_path, config.news20_class_random_group_path, 0.5, 10)
     # generate_random_group(config.chen14_elec_class_label_path, config.chen14_elec_class_random_group_path, 0.5, 10)
 
+    # generate_random_group(config.zhang15_dbpedia_class_label_path, config.zhang15_dbpedia_class_random_group_path, 0.75, 10)
+    # generate_random_group(config.news20_class_label_path, config.news20_class_random_group_path, 0.75, 10)
+    # generate_random_group(config.chen14_elec_class_label_path, config.chen14_elec_class_random_group_path, 0.75, 10)
+
     # check_tf_idf()
+
+    # check_class_cluster()
     pass
 
 
