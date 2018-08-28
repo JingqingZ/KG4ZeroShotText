@@ -263,6 +263,9 @@ news20_train_processed_path = news20_dir + "processed_train_text.pkl"
 news20_test_path = news20_dir + "test.csv"
 news20_test_processed_path = news20_dir + "processed_test_text.pkl"
 
+news20_train_aug_path = news20_dir + "train_augmented.csv"
+news20_train_aug_processed_path = news20_dir + "processed_train_aug_text.pkl"
+
 news20_vocab_path = news20_dir + "vocab.txt"
 
 # news20_kg_vector_dir = news20_dir + "KG_VECTOR_3_Lem/"

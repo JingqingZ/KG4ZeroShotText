@@ -121,7 +121,7 @@ class Controller4Unseen(train_base.Base_Controller):
         assert len(unseen_text_seqs) == len(unseen_class_list)
         print("Text seqs of unseen classes: %d" % len(unseen_text_seqs))
         if augdata:
-            print("Num of each unseen class {%s}" % (", ".join(["%s:%s" % (k, v) for k, v in unseen_class_counter.items()])))
+            print("Augmented data num of each unseen class {%s}" % (", ".join(["%s:%s" % (k, v) for k, v in unseen_class_counter.items()])))
         return unseen_text_seqs, unseen_class_list
 
     def prepro_encode(self, textlist):
@@ -289,7 +289,10 @@ class Controller4Unseen(train_base.Base_Controller):
                 })
 
             else:
-                kg_vector_seqs_mini = self.get_kg_vector_given_class(encode_seqs_id_mini, class_id_mini)
+                if config.model == "vwvc":
+                    kg_vector_seqs_mini = np.zeros((config.batch_size, self.model.max_length, self.model.kg_embedding_dim))
+                else:
+                    kg_vector_seqs_mini = self.get_kg_vector_given_class(encode_seqs_id_mini, class_id_mini)
                 results = self.sess.run([
                     self.model.train_loss,
                     self.model.train_net.outputs,
@@ -457,6 +460,8 @@ class Controller4Unseen(train_base.Base_Controller):
 
         assert len(train_aug_class_list) == len(train_aug_text_seqs)
         assert len(train_aug_class_list) <= config.augmentation * len(self.unseen_class)
+        print("Augmented data from this random group keep unseen only: ", utils.counter_of_list(train_aug_class_list))
+        print("Origin real data from seen classes:", utils.counter_of_list(train_class_list))
 
         seen_test_text_seqs, seen_test_class_list = self.get_text_of_seen_class(test_text_seqs, test_class_list)
         unseen_test_text_seqs, unseen_test_class_list = self.get_text_of_unseen_class(test_text_seqs, test_class_list)
@@ -480,13 +485,15 @@ class Controller4Unseen(train_base.Base_Controller):
             for _ in range(config.small_epoch):
                 print("epoch %d %d/%d" % (global_epoch, _ + 1, config.small_epoch))
                 if config.augmentation > 0:
+                    print("Training with augmentation %s" % (global_epoch > 6))
                     self.__train__(
                         global_epoch,
-                        train_text_seqs + train_aug_text_seqs,
-                        train_class_list + train_aug_class_list,
+                        train_text_seqs + train_aug_text_seqs if global_epoch > 6 else train_text_seqs,
+                        train_class_list + train_aug_class_list if global_epoch > 6 else train_class_list,
                         max_train_steps=1000
                     )
                 else:
+                    print("Training without augmentation")
                     self.__train__(
                         global_epoch,
                         train_text_seqs,
@@ -675,6 +682,11 @@ def run_dbpedia():
     )
 
     if config.augmentation > 0:
+        train_aug_from_class_list = dataloader.load_data_class(
+            filename=config.zhang15_dbpedia_train_aug_path,
+            column="from_class",
+        )
+
         train_aug_class_list = dataloader.load_data_class(
             filename=config.zhang15_dbpedia_train_aug_path,
             column="to_class",
@@ -684,7 +696,11 @@ def run_dbpedia():
             config.zhang15_dbpedia_train_aug_path, vocab, config.zhang15_dbpedia_train_aug_processed_path,
             column="text", force_process=False
         )
+
+        print("Augmented data size origin: ", utils.counter_of_list(train_aug_class_list))
+
     else:
+        train_aug_from_class_list = []
         train_aug_class_list = []
         train_aug_text_seqs = []
 
@@ -703,6 +719,17 @@ def run_dbpedia():
             continue
 
         max_length = 80
+
+        print("Removing augmented data from unseen classes ...")
+        train_aug_class_list_from_seen = list()
+        train_aug_text_seqs_from_seen = list()
+        for tidx, text in enumerate(train_aug_text_seqs):
+            if train_aug_from_class_list[tidx] in rgroup[1]:
+                continue
+            train_aug_class_list_from_seen.append(train_aug_class_list[tidx])
+            train_aug_text_seqs_from_seen.append(train_aug_text_seqs[tidx])
+        assert len(train_aug_class_list_from_seen) == len(train_aug_text_seqs_from_seen)
+        print("Augmented data from seen class: %d" % len(train_aug_class_list_from_seen), utils.counter_of_list(train_aug_class_list_from_seen))
 
         with tf.Graph().as_default() as graph:
             tl.layers.clear_layers_name()
@@ -731,9 +758,9 @@ def run_dbpedia():
             )
             if config.global_is_train:
                 ctl.controller(train_text_seqs, train_class_list,
-                               train_aug_text_seqs, train_aug_class_list,
+                               train_aug_text_seqs_from_seen, train_aug_class_list_from_seen,
                                test_text_seqs, test_class_list,
-                               rgroup=rgroup, train_epoch=10)
+                               rgroup=rgroup, train_epoch=15)
             else:
                 ctl.controller4test(test_text_seqs, test_class_list, unseen_class_list=ctl.unseen_class,
                                     rgroup=rgroup, base_epoch=config.global_test_base_epoch)
@@ -808,6 +835,31 @@ def run_20news():
         column="selected_tfidf", force_process=False
     )
 
+    if config.augmentation > 0:
+        train_aug_from_class_list = dataloader.load_data_class(
+            filename=config.news20_train_aug_path,
+            column="from_class",
+        )
+
+        train_aug_class_list = dataloader.load_data_class(
+            filename=config.news20_train_aug_path,
+            column="to_class",
+        )
+
+        train_aug_text_seqs = dataloader.load_data_from_text_given_vocab(
+            config.news20_train_aug_path, vocab, config.news20_train_aug_processed_path,
+            column="text", force_process=False
+        )
+
+        print("Augmented data size origin: ", utils.counter_of_list(train_aug_class_list))
+
+    else:
+        train_aug_from_class_list = []
+        train_aug_class_list = []
+        train_aug_text_seqs = []
+
+    assert len(train_aug_class_list) == len(train_aug_text_seqs)
+
     lenlist = [len(text) for text in test_text_seqs] + [len(text) for text in train_text_seqs]
     print("Avg length of documents: ", np.mean(lenlist))
     print("95% length of documents: ", np.percentile(lenlist, 95))
@@ -821,6 +873,17 @@ def run_20news():
             continue
 
         max_length = 50
+
+        print("Removing augmented data from unseen classes ...")
+        train_aug_class_list_from_seen = list()
+        train_aug_text_seqs_from_seen = list()
+        for tidx, text in enumerate(train_aug_text_seqs):
+            if train_aug_from_class_list[tidx] in rgroup[1]:
+                continue
+            train_aug_class_list_from_seen.append(train_aug_class_list[tidx])
+            train_aug_text_seqs_from_seen.append(train_aug_text_seqs[tidx])
+        assert len(train_aug_class_list_from_seen) == len(train_aug_text_seqs_from_seen)
+        print("Augmented data from seen class: %d" % len(train_aug_class_list_from_seen), utils.counter_of_list(train_aug_class_list_from_seen))
 
         with tf.Graph().as_default() as graph:
             tl.layers.clear_layers_name()
@@ -849,7 +912,9 @@ def run_20news():
                 base_epoch=-1,
             )
             if config.global_is_train:
-                ctl.controller(train_text_seqs, train_class_list, [], [], test_text_seqs, test_class_list, rgroup=rgroup, train_epoch=10)
+                ctl.controller(train_text_seqs, train_class_list,
+                               train_aug_text_seqs_from_seen, train_aug_class_list_from_seen,
+                               test_text_seqs, test_class_list, rgroup=rgroup, train_epoch=10)
             else:
                 ctl.controller4test(test_text_seqs, test_class_list, unseen_class_list=ctl.unseen_class,
                                     rgroup=rgroup, base_epoch=config.global_test_base_epoch)

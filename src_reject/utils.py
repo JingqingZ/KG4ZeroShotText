@@ -5,6 +5,14 @@ from datetime import datetime
 
 time_fmt = "%Y-%m-%d-%H-%M-%S"
 
+def counter_of_list(l):
+    counter = dict()
+    for item in l:
+        if item not in counter:
+            counter[item] = 0
+        counter[item] += 1
+    return counter
+
 def now2string(fmt="%Y-%m-%d-%H-%M-%S"):
     return datetime.now().strftime(fmt)
 
