@@ -82,6 +82,7 @@ def get_statistics(prediction, ground_truth, single_label_pred=False):
         single_label_prediction = np.argmax(prediction, axis = 1)
         single_label_error = np.mean(single_label_prediction != single_label_ground_truth)
         stats['single-label-error'] = single_label_error
+        stats['single-label-accuracy'] = 1 - single_label_error
 
         '''
         error_matrix = np.zeros((ground_truth.shape[1], prediction.shape[1]))

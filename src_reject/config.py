@@ -11,11 +11,18 @@ parser.add_argument("--ni", type=int, required=True, help="negative increase: in
 parser.add_argument("--sepoch", type=int, required=True, help="small epoch: integer, repeat training of each epoch for several times so that the ratio of posi/negative, learning rate both keep the same")
 parser.add_argument("--rgidx", type=int, required=True, help="random group starting index: e.g. if 5, the training will start from the 5th random group, by default 1")
 parser.add_argument("--train", type=int, required=True, help="train or not")
+parser.add_argument("--gpu", type=float, required=False, help="gpu occupation percentage")
 parser.add_argument("--baseepoch", type=int, required=False, help="base epoch for testing")
+parser.add_argument("--fulltest", type=int, required=False, help="full test or not")
+parser.add_argument("--threshold", type=float, required=False, help="threshold for seen")
 args = parser.parse_args()
 print(args)
 
+global_gpu_occupation = args.gpu if args.gpu is not None else 1.0
 global_is_train = bool(args.train)
+global_full_test = bool(args.fulltest)
+global_threshold_for_seen = args.threshold
+print("GPU percentage %s" % global_gpu_occupation)
 print("Training %s" % global_is_train)
 global_test_base_epoch = args.baseepoch
 
@@ -104,6 +111,17 @@ pos_dict = {'JJ': 'a', 'JJR': 'a', 'JJS': 'a',
 word_embed_file_path = "../data/glove/glove.6B.200d.txt"
 
 conceptnet_path = "../wordEmbeddings/conceptnet-assertions-en-5.6.0.csv"
+
+if dataset == "dbpedia" and unseen_rate == 0.25:
+    rejector_file = "./dbpedia_unseen0.25_augmented12000.pickle"
+elif dataset == "dbpedia" and unseen_rate == 0.5:
+    rejector_file = "./dbpedia_unseen0.50_augmented8000.pickle"
+elif dataset == "20news" and unseen_rate == 0.25:
+    rejector_file = "./20news_unseen0.25_augmented2000.pickle"
+elif dataset == "20news" and unseen_rate == 0.5:
+    rejector_file = "./20news_unseen0.50_augmented3000.pickle"
+else:
+    rejector_file = None
 
 
 ##################################

@@ -29,15 +29,21 @@ class Model4Unseen(model_base.Base_Model):
             decay_steps,
             word_embedding_dim=config.word_embedding_dim,
             kg_embedding_dim=config.kg_embedding_dim,
-            max_length=config.max_length
+            max_length=config.max_length,
+            vocab_size=30000,
     ):
         self.word_embedding_dim = word_embedding_dim
         self.kg_embedding_dim = kg_embedding_dim
         self.max_length = max_length
+        self.vocab_size = vocab_size
 
         super(Model4Unseen, self).__init__(model_name, start_learning_rate, decay_rate, decay_steps)
 
     def __create_placeholders__(self):
+        self.target_seqs = tf.placeholder(dtype=tf.int32, shape=[config.batch_size, self.max_length], name="target_seqs")
+        self.target_mask = tf.placeholder(dtype=tf.int32, shape=[config.batch_size, self.max_length], name="target_mask")
+        self.decode_seqs = tf.placeholder(dtype=tf.float32, shape=[config.batch_size, self.max_length, self.word_embedding_dim], name="decode_seqs")
+
         self.encode_seqs = tf.placeholder(dtype=tf.float32, shape=[config.batch_size, self.max_length, self.word_embedding_dim], name="encode_seqs")
         self.class_label_seqs = tf.placeholder(dtype=tf.float32, shape=[config.batch_size, self.max_length, self.word_embedding_dim], name="class_label_seqs")
         self.kg_vector = tf.placeholder(dtype=tf.float32, shape=[config.batch_size, self.max_length, self.kg_embedding_dim], name="kg_score")
@@ -53,7 +59,14 @@ class Model4Unseen(model_base.Base_Model):
         # self.negative_kg_vector = tf.placeholder(dtype=tf.float32, shape=[config.batch_size, self.max_length, self.kg_embedding_dim], name="kg_score_negative")
 
     def __create_model__(self):
-        if config.model == "cnnfc":
+        if config.model == "autoencoder":
+            self.train_net, self.train_seq2seq = self.__get_network_autoencoder__(self.model_name, self.encode_seqs, self.decode_seqs, reuse=False, is_train=True)
+            self.test_net, self.test_seq2seq = self.__get_network_autoencoder__(self.model_name, self.encode_seqs, self.decode_seqs, reuse=True, is_train=False)
+            self.train_text_state = self.train_seq2seq.final_state_encode
+            self.test_text_state = self.test_seq2seq.final_state_encode
+            self.train_y = tf.nn.softmax(self.train_net.outputs)
+            self.test_y = tf.nn.softmax(self.test_net.outputs)
+        elif config.model == "cnnfc":
             self.train_net = self.__get_network_cnnfc__(self.model_name, self.encode_seqs, self.class_label_seqs, reuse=False, is_train=True)
             self.test_net = self.__get_network_cnnfc__(self.model_name, self.encode_seqs, self.class_label_seqs, reuse=True, is_train=False)
         elif config.model == "rnnfc":
@@ -101,7 +114,7 @@ class Model4Unseen(model_base.Base_Model):
             if config.model == "vwvcvkg":
                 # dbpedia and 20news
                 net_in = ConcatLayer(
-                    [net_word_embed, net_kg, net_class_label_embed],
+                    [net_word_embed, net_class_label_embed, net_kg],
                     concat_dim=-1,
                     name='concat_vw_vwc_vc'
                 )
@@ -152,6 +165,22 @@ class Model4Unseen(model_base.Base_Model):
                 net_cnn.outputs = tf.reduce_max(net_cnn.outputs, axis=1, name="global_maxpool%d" % fsz)
                 net_cnn_list.append(net_cnn)
 
+            '''
+            if config.model == "vwvcvkg":
+                net_class_label_embed.outputs = tf.slice(
+                    net_class_label_embed.outputs,
+                    [0, 0, 0],
+                    [config.batch_size, 1, self.word_embedding_dim],
+                    name="slice_word"
+                )
+                net_class_label_embed.outputs = tf.squeeze(
+                    net_class_label_embed.outputs,
+                    name="squeeze_word"
+                )
+                net_cnn = ConcatLayer(net_cnn_list + [net_class_label_embed], concat_dim=-1)
+            else:
+                net_cnn = ConcatLayer(net_cnn_list, concat_dim=-1)
+            '''
             net_cnn = ConcatLayer(net_cnn_list, concat_dim=-1)
 
             net_fc = DropoutLayer(net_cnn, keep=0.5, is_fix=True, is_train=is_train, name='drop1')
@@ -299,7 +328,7 @@ class Model4Unseen(model_base.Base_Model):
             net_rnn = RNNLayer(
                 net_in,
                 cell_fn=tf.contrib.rnn.BasicLSTMCell,
-                n_hidden = 256,
+                n_hidden = 512,
                 n_steps = self.max_length,
                 return_last = True,
                 name = 'lstm'
@@ -335,19 +364,64 @@ class Model4Unseen(model_base.Base_Model):
             )
         return net_fc
 
+    def __get_network_autoencoder__(self, model_name, encode_seqs, decode_seqs, reuse=False, is_train=True):
+        with tf.variable_scope(model_name, reuse=reuse):
+            tl.layers.set_name_reuse(reuse)
+
+            net_encode = InputLayer(
+                inputs=encode_seqs,
+                name="in_word_embed_encode"
+            )
+            net_decode = InputLayer(
+                inputs=decode_seqs,
+                name="in_word_embed_decode"
+            )
+
+            net_seq2seq = Seq2Seq(
+                net_encode, net_decode,
+                cell_fn = tf.contrib.rnn.BasicLSTMCell,
+                n_hidden = 512,
+                initializer = tf.random_uniform_initializer(-0.1, 0.1),
+                encode_sequence_length = retrieve_seq_length_op(encode_seqs),
+                decode_sequence_length = retrieve_seq_length_op(decode_seqs),
+                initial_state_encode = None,
+                n_layer = 1,
+                return_seq_2d = True,
+                name = 'seq2seq'
+            )
+            net_out = DenseLayer(net_seq2seq, n_units=self.vocab_size, act=tf.identity, name='output')
+
+        return net_out, net_seq2seq
+
+
 
     def __create_loss__(self):
-        self.train_loss = tl.cost.binary_cross_entropy(
-            output=self.train_net.outputs,
-            target=self.category_logits,
-            name="train_loss"
-        )
+        if config.model == "autoencoder":
 
-        self.test_loss = tl.cost.binary_cross_entropy(
-            output=self.test_net.outputs,
-            target=self.category_logits,
-            name="test_loss"
-        )
+            self.train_loss = tl.cost.cross_entropy_seq_with_mask(
+                logits=self.train_net.outputs,
+                target_seqs=self.target_seqs,
+                input_mask=self.target_mask,
+                name='train_loss'
+            )
+            self.test_loss = tl.cost.cross_entropy_seq_with_mask(
+                logits=self.test_net.outputs,
+                target_seqs=self.target_seqs,
+                input_mask=self.target_mask,
+                name='test_loss'
+            )
+        else:
+            self.train_loss = tl.cost.binary_cross_entropy(
+                output=self.train_net.outputs,
+                target=self.category_logits,
+                name="train_loss"
+            )
+
+            self.test_loss = tl.cost.binary_cross_entropy(
+                output=self.test_net.outputs,
+                target=self.category_logits,
+                name="test_loss"
+            )
 
     def __create_training_op__(self):
         self.global_step = tf.placeholder(

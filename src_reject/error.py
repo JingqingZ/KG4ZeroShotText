@@ -1,4 +1,5 @@
 import numpy as np
+import progressbar
 
 import utils
 import config
@@ -726,13 +727,15 @@ def error_seen():
         # filename = "../results/seen_full_chen14_elec_vwonly_random%d_unseen%s_max%d_cnn/logs/test_%d.npz" \
         # filename = "../results/seen_selected_tfidf_news20_vwonly_random%d_unseen%s_max%d_cnn/logs/test_%d.npz" \
         #            % (i + 1, "-".join(str(_) for _ in rgroup[1]), 200, 30 if i < 5 else 100)
-        epoch = 10
+        epoch = config.global_test_base_epoch
         if config.dataset == "dbpedia":
-            filename = "../results/unseen_full_zhang15_dbpedia_kg3_cluster_3group_%s_random%d_unseen%s_max%d_cnn_negative%dincrease%d_randomtext_aug%d/logs/test_%d.npz" \
-                       % (config.model, i + 1, "-".join(str(_) for _ in rgroup[1]), 80, config.negative_sample, config.negative_increase, config.augmentation, epoch)
+            filename = "../results/unseen_full_zhang15_dbpedia_kg3_cluster_3group_%s_random%d_unseen%s_max%d_cnn_negative%dincrease%d_randomtext_aug%d/logs/test%s_%d.npz" \
+                       % (config.model, i + 1, "-".join(str(_) for _ in rgroup[1]), 80, config.negative_sample, config.negative_increase, config.augmentation,
+                          "" if not config.global_full_test else "_full", epoch)
         elif config.dataset == "20news":
-            filename = "../results/unseen_selected_tfidf_news20_kg3_cluster_3group_%s_random%d_unseen%s_max%d_cnn_negative%dincrease%d_randomtext_aug%d/logs/test_%d.npz" \
-                       % (config.model, i + 1, "-".join(str(_) for _ in rgroup[1]), 50, config.negative_sample, config.negative_increase, config.augmentation, epoch)
+            filename = "../results/unseen_selected_tfidf_news20_kg3_cluster_3group_%s_random%d_unseen%s_max%d_cnn_negative%dincrease%d_randomtext_aug%d/logs/test%s_%d.npz" \
+                       % (config.model, i + 1, "-".join(str(_) for _ in rgroup[1]), 50, config.negative_sample, config.negative_increase, config.augmentation,
+                          "" if not config.global_full_test else "_full", epoch)
         else:
             raise Exception("invalid dataset")
 
@@ -769,7 +772,8 @@ def classify_single_label_for_unseen(filename, rgroup, printstats=True):
 
     for class_id in unseen_class:
         assert class_id + 1 in rgroup[1]
-    assert len(rgroup[1]) == unseen_class.shape[0]
+    if config.global_full_test:
+        assert len(rgroup[1]) == unseen_class.shape[0]
     # print("Seen classes:", rgroup[0])
     # print("Unseen classes:", rgroup[1])
 
@@ -799,7 +803,10 @@ def error_unseen():
         raise Exception("invalid dataset")
     # random_group = dataloader.get_random_group(config.chen14_elec_class_random_group_path)
 
-    for epoch in range(11):
+    for epoch in range(16):
+        if config.global_test_base_epoch is not None:
+            if epoch != config.global_test_base_epoch:
+                continue
         # if epoch != 9:
         #     continue
 
@@ -811,20 +818,23 @@ def error_unseen():
             # filename = "../results/unseen_full_zhang15_dbpedia_kg3_cluster_3group_random%d_unseen%s_max%d_cnn_negative%dincrease3_randomtext/logs/test_%d.npz" \
             # filename = "../results/unseen_selected_tfidf_news20_kg3_cluster_3group_only_smallepoch5_random%d_unseen%s_max%d_cnn_negative%dincrease%d_randomtext/logs/test_%d.npz" \
             # filename = "../results/unseen_selected_tfidf_news20_kg3_cluster_3group_only_random%d_unseen%s_max%d_cnn_negative%dincrease%d_randomtext/logs/test_%d.npz" \
-            # filename = "../results/unseen_selected_tfidf_news20_kg3_cluster_3group_only_random%d_unseen%s_max%d_cnn_negative%dincrease%d_randomtext/logs/test_full_%d.npz" \
             # filename = "../results/unseen_full_chen14_elec_kg3_cluster_3group_random%d_unseen%s_max%d_cnn_negative%dincrease%d_randomtext/logs/test_%d.npz" \
             #            % (i + 1, "-".join(str(_) for _ in rgroup[1]), 100, 1, 1, epoch)
                        # % (i + 1, "-".join(str(_) for _ in rgroup[1]), 50, 1, 1, epoch)
             if config.dataset == "dbpedia":
                 # currently best one
                 # filename = "../results/unseen_full_zhang15_dbpedia_kg3_cluster_3group_random%d_unseen%s_max%d_cnn_negative%dincrease3_randomtext/logs/test_full_%d.npz" \
-                filename = "../results/unseen_full_zhang15_dbpedia_kg3_cluster_3group_random%d_unseen%s_max%d_cnn_negative%dincrease3_randomtext/logs/test_%d.npz" \
-                                   % (i + 1, "-".join(str(_) for _ in rgroup[1]), 80, 5, epoch)
-                # filename = "../results/unseen_full_zhang15_dbpedia_kg3_cluster_3group_%s_random%d_unseen%s_max%d_cnn_negative%dincrease%d_randomtext_aug%d/logs/test_%d.npz" \
-                #                    % (config.model, i + 1, "-".join(str(_) for _ in rgroup[1]), 80, config.negative_sample, config.negative_increase, config.augmentation, epoch)
+                # filename = "../results/unseen_full_zhang15_dbpedia_kg3_cluster_3group_random%d_unseen%s_max%d_cnn_negative%dincrease3_randomtext/logs/test_%d.npz" \
+                #                    % (i + 1, "-".join(str(_) for _ in rgroup[1]), 80, 5, epoch)
+                filename = "../results/unseen_full_zhang15_dbpedia_kg3_cluster_3group_%s_random%d_unseen%s_max%d_cnn_negative%dincrease%d_randomtext_aug%d/logs/test%s_%d.npz" \
+                           % (config.model, i + 1, "-".join(str(_) for _ in rgroup[1]), 80, config.negative_sample, config.negative_increase, config.augmentation,
+                              "" if not config.global_full_test else "_full", epoch)
             elif config.dataset == "20news":
-                filename = "../results/unseen_selected_tfidf_news20_kg3_cluster_3group_%s_random%d_unseen%s_max%d_cnn_negative%dincrease%d_randomtext_aug%d/logs/test_%d.npz" \
-                           % (config.model, i + 1, "-".join(str(_) for _ in rgroup[1]), 50, config.negative_sample, config.negative_increase, config.augmentation, epoch)
+                # filename = "../results/unseen_selected_tfidf_news20_kg3_cluster_3group_only_random%d_unseen%s_max%d_cnn_negative%dincrease%d_randomtext/logs/test_full_%d.npz" \
+                #               % (i + 1, "-".join(str(_) for _ in rgroup[1]), 50, 1, 1, epoch)
+                filename = "../results/unseen_selected_tfidf_news20_kg3_cluster_3group_%s_random%d_unseen%s_max%d_cnn_negative%dincrease%d_randomtext_aug%d/logs/test%s_%d.npz" \
+                            % (config.model, i + 1, "-".join(str(_) for _ in rgroup[1]), 50, config.negative_sample, config.negative_increase, config.augmentation,
+                              "" if not config.global_full_test else "_full", epoch)
             else:
                 raise Exception("invalid dataset")
 
@@ -851,6 +861,8 @@ def error_unseen():
 
         print("=======")
         print(epoch, "overall: %s" % (utils.dict_to_string_4_print(overall_stats)))
+        if len(overall_stats) == 0:
+            continue
         print("for Google Sheets, split by comma")
         print_string += "%.3f/%.3f/%.3f" \
                         % (1 - overall_stats["single-label-error"],
@@ -903,11 +915,359 @@ def error_unseen_best():
                        overall_stats["macro-F1"])
     print(print_string)
 
+def classify_single_label_for_overall(filename, rgroup, printstats=True):
+    data = np.load(filename)
+
+    unseen_class = np.nonzero(np.sum(data["gt_unseen"], axis=0))[0]
+
+    for class_id in unseen_class:
+        assert class_id + 1 in rgroup[1]
+    if config.global_full_test:
+        assert len(rgroup[1]) == unseen_class.shape[0]
+
+    seen_class = [class_id - 1 for class_id in rgroup[0]]
+
+    # print("Seen classes:", rgroup[0])
+    # print("Unseen classes:", rgroup[1])
+
+    pred_overall = np.concatenate([data["pred_unseen"], data["pred_seen"]], axis=0)
+    threshold = config.global_threshold_for_seen if config.global_threshold_for_seen is not None else 0.5
+    for pidx, pred in enumerate(pred_overall):
+        maxconf = -1
+        argmax = -1
+        for class_idx in range(len(pred)):
+            if pred[class_idx] > maxconf and pred[class_idx] > threshold:
+                argmax = class_idx
+                maxconf = pred[class_idx]
+        if argmax != -1:
+            pred_overall[pidx] = 0
+            pred_overall[pidx, argmax] = 1
+        else:
+            for class_idx in range(len(pred)):
+                if pred[class_idx] > maxconf and class_idx in unseen_class:
+                    argmax = class_idx
+                    maxconf = pred[class_idx]
+            pred_overall[pidx] = 0
+            pred_overall[pidx, argmax] = 1
+
+    stats_overall = utils.get_statistics(
+        pred_overall,
+        np.concatenate([data["gt_unseen"], data["gt_seen"]], axis=0),
+        single_label_pred=True
+    )
+    stats_unseen = utils.get_statistics(
+        # np.take(pred_overall[:data["gt_unseen"].shape[0]], unseen_class, axis=1),
+        # np.take(data["gt_unseen"], unseen_class, axis=1),
+        pred_overall[:data["gt_unseen"].shape[0]],
+        data["gt_unseen"],
+        single_label_pred=True
+    )
+    stats_seen = utils.get_statistics(
+        # np.take(pred_overall[data["gt_unseen"].shape[0]:], seen_class, axis=1),
+        # np.take(data["gt_seen"], seen_class, axis=1),
+        pred_overall[data["gt_unseen"].shape[0]:],
+        data["gt_seen"],
+        single_label_pred=True
+    )
+    if printstats:
+        print("seen: %s" % (utils.dict_to_string_4_print(stats_seen)))
+        print("unseen: %s" % (utils.dict_to_string_4_print(stats_unseen)))
+        print("overall: %s" % (utils.dict_to_string_4_print(stats_overall)))
+    return stats_seen, stats_unseen, stats_overall
+
+def error_overall():
+    if config.dataset == "dbpedia":
+        random_group = dataloader.get_random_group(config.zhang15_dbpedia_class_random_group_path)
+    elif config.dataset == "20news":
+        random_group = dataloader.get_random_group(config.news20_class_random_group_path)
+    else:
+        raise Exception("invalid dataset")
+    # random_group = dataloader.get_random_group(config.chen14_elec_class_random_group_path)
+
+    for epoch in range(16):
+        if config.global_test_base_epoch is not None:
+            if epoch != config.global_test_base_epoch:
+                continue
+
+        seen_stats = dict()
+        unseen_stats = dict()
+        overall_stats = dict()
+        print_string = ""
+
+        for i, rgroup in enumerate(random_group):
+
+            # if i >= 3:
+            #     continue
+
+            # filename = "../results/unseen_full_zhang15_dbpedia_kg3_cluster_3group_random%d_unseen%s_max%d_cnn_negative%dincrease3_randomtext/logs/test_%d.npz" \
+            # filename = "../results/unseen_selected_tfidf_news20_kg3_cluster_3group_only_smallepoch5_random%d_unseen%s_max%d_cnn_negative%dincrease%d_randomtext/logs/test_%d.npz" \
+            # filename = "../results/unseen_selected_tfidf_news20_kg3_cluster_3group_only_random%d_unseen%s_max%d_cnn_negative%dincrease%d_randomtext/logs/test_%d.npz" \
+            # filename = "../results/unseen_selected_tfidf_news20_kg3_cluster_3group_only_random%d_unseen%s_max%d_cnn_negative%dincrease%d_randomtext/logs/test_full_%d.npz" \
+            # filename = "../results/unseen_full_chen14_elec_kg3_cluster_3group_random%d_unseen%s_max%d_cnn_negative%dincrease%d_randomtext/logs/test_%d.npz" \
+            #            % (i + 1, "-".join(str(_) for _ in rgroup[1]), 100, 1, 1, epoch)
+            # % (i + 1, "-".join(str(_) for _ in rgroup[1]), 50, 1, 1, epoch)
+            if config.dataset == "dbpedia":
+                # currently best one
+                # filename = "../results/unseen_full_zhang15_dbpedia_kg3_cluster_3group_random%d_unseen%s_max%d_cnn_negative%dincrease3_randomtext/logs/test_full_%d.npz" \
+                # filename = "../results/unseen_full_zhang15_dbpedia_kg3_cluster_3group_random%d_unseen%s_max%d_cnn_negative%dincrease3_randomtext/logs/test_%d.npz" \
+                #            % (i + 1, "-".join(str(_) for _ in rgroup[1]), 80, 5, epoch)
+                filename = "../results/unseen_full_zhang15_dbpedia_kg3_cluster_3group_%s_random%d_unseen%s_max%d_cnn_negative%dincrease%d_randomtext_aug%d/logs/test%s_%d.npz" \
+                           % (config.model, i + 1, "-".join(str(_) for _ in rgroup[1]), 80, config.negative_sample, config.negative_increase, config.augmentation,
+                              "" if not config.global_full_test else "_full", epoch)
+            elif config.dataset == "20news":
+                filename = "../results/unseen_selected_tfidf_news20_kg3_cluster_3group_%s_random%d_unseen%s_max%d_cnn_negative%dincrease%d_randomtext_aug%d/logs/test%s_%d.npz" \
+                           % (config.model, i + 1, "-".join(str(_) for _ in rgroup[1]), 50, config.negative_sample, config.negative_increase, config.augmentation,
+                              "" if not config.global_full_test else "_full", epoch)
+            else:
+                raise Exception("invalid dataset")
+
+            # print(filename)
+            # print(os.path.exists(filename))
+            # exit()
+            if not os.path.exists(filename):
+                continue
+
+            if config.global_full_test:
+                classify_stats_seen, classify_stats_unseen, classify_stats_overall = classify_single_label_for_overall(filename, rgroup, True)
+            else:
+                classify_stats_seen, classify_stats_unseen, classify_stats_overall = classify_single_label_for_overall(filename, rgroup, False)
+            # classify_stats = classify_single_label_for_unseen(filename, rgroup, True)
+            for k in classify_stats_seen:
+                v = classify_stats_seen[k]
+                if k not in seen_stats:
+                    seen_stats[k] = list()
+                seen_stats[k].append(v)
+            for k in classify_stats_unseen:
+                v = classify_stats_unseen[k]
+                if k not in unseen_stats:
+                    unseen_stats[k] = list()
+                unseen_stats[k].append(v)
+            for k in classify_stats_overall:
+                v = classify_stats_overall[k]
+                if k not in overall_stats:
+                    overall_stats[k] = list()
+                overall_stats[k].append(v)
+
+        if len(overall_stats) == 0:
+            print("empty")
+            continue
+
+        for k in seen_stats:
+            seen_stats[k] = np.mean(seen_stats[k])
+        for k in unseen_stats:
+            unseen_stats[k] = np.mean(unseen_stats[k])
+        for k in overall_stats:
+            overall_stats[k] = np.mean(overall_stats[k])
+        print("=======")
+        print(epoch, "seen: %s" % (utils.dict_to_string_4_print(seen_stats)))
+        print(epoch, "unseen: %s" % (utils.dict_to_string_4_print(unseen_stats)))
+        print(epoch, "overall: %s" % (utils.dict_to_string_4_print(overall_stats)))
+        print_string += "%.3f/%.3f/%.3f" \
+                       % (1 - seen_stats["single-label-error"],
+                          seen_stats["micro-F1"],
+                          seen_stats["macro-F1"])
+        print_string += ",%.3f/%.3f/%.3f" \
+                       % (1 - unseen_stats["single-label-error"],
+                          unseen_stats["micro-F1"],
+                          unseen_stats["macro-F1"])
+        print_string += ",%.3f/%.3f/%.3f" \
+                        % (1 - overall_stats["single-label-error"],
+                           overall_stats["micro-F1"],
+                           overall_stats["macro-F1"])
+        print(print_string)
+
+
+def error_overall_with_rejector():
+    import pickle
+
+    if config.dataset == "dbpedia":
+        random_group = dataloader.get_random_group(config.zhang15_dbpedia_class_random_group_path)
+    elif config.dataset == "20news":
+        random_group = dataloader.get_random_group(config.news20_class_random_group_path)
+    else:
+        raise Exception("invalid dataset")
+
+    with open(config.rejector_file, 'rb') as f:
+        full_reject_list = pickle.load(f)
+
+    seen_stats = dict()
+    unseen_stats = dict()
+    overall_stats = dict()
+    print_string = ""
+
+    for i, rgroup in enumerate(random_group):
+        reject_list = full_reject_list[i]
+
+        print(rgroup)
+        print(len(reject_list))
+
+        if config.dataset == "dbpedia" and config.unseen_rate == 0.25:
+            unseen_filename = "../results/unseen_full_zhang15_dbpedia_kg3_cluster_3group_random%d_unseen%s_max%d_cnn_negative%dincrease3_randomtext/logs/test_full_%d.npz" \
+                           % (i + 1, "-".join(str(_) for _ in rgroup[1]), 80, 5, 9)
+            seen_filename = "../results/seen_full_zhang15_dbpedia_vwonly_random%d_unseen%s_max%d_cnn/logs/test_%d.npz" \
+                           % (i + 1, "-".join(str(_) for _ in rgroup[1]), 50, 9)
+        elif config.dataset == "20news" and config.unseen_rate == 0.25:
+            unseen_filename = "../results/unseen_selected_tfidf_news20_kg3_cluster_3group_only_random%d_unseen%s_max%d_cnn_negative%dincrease%d_randomtext/logs/test_full_%d.npz" \
+                          % (i + 1, "-".join(str(_) for _ in rgroup[1]), 50, 1, 1, 1)
+            seen_filename = "../results/seen_selected_tfidf_news20_vwonly_random%d_unseen%s_max%d_cnn/logs/test_%d.npz" \
+                            % (i + 1, "-".join(str(_) for _ in rgroup[1]), 200, 30)
+        else:
+            raise Exception("exception")
+
+        unseen_data = np.load(unseen_filename)
+        seen_data = np.load(seen_filename)
+
+        pred_unseen = unseen_data["pred_unseen"]
+        pred_seen = seen_data["pred_seen"]
+        print(pred_unseen.shape)
+        print(pred_seen.shape)
+
+        assert pred_unseen.shape[1] == pred_seen.shape[1]
+        assert pred_unseen.shape[1] == len(rgroup[0]) + len(rgroup[1])
+
+        test_class_list = dataloader.load_data_class(
+            filename=config.zhang15_dbpedia_test_path if config.dataset == "dbpedia" else config.news20_test_path,
+            column="class",
+        )
+
+        print(len(test_class_list))
+        assert len(test_class_list) == len(reject_list)
+
+        seen_counter = 0
+        unseen_counter = 0
+
+        pred_overall_seen = list()
+        gt_overall_seen = list()
+        pred_overall_unseen = list()
+        gt_overall_unseen = list()
+
+        pa = pr = na = nr = 0
+        with progressbar.ProgressBar(max_value=len(test_class_list)) as bar:
+            for data_idx, class_id in enumerate(test_class_list):
+
+                if class_id in rgroup[0]:
+                    seen_counter += 1
+                    if seen_counter > pred_seen.shape[0]:
+                        continue
+                elif class_id in rgroup[1]:
+                    unseen_counter += 1
+                    if unseen_counter > pred_unseen.shape[0]:
+                        continue
+                else:
+                    raise Exception("invalid class id")
+
+                g = np.zeros(len(rgroup[0]) + len(rgroup[1]))
+                g[class_id - 1] = 1
+                if class_id in rgroup[0]:
+                    gt_overall_seen.append(g)
+                else:
+                    gt_overall_unseen.append(g)
+
+
+                r = np.zeros(len(rgroup[0]) + len(rgroup[1]))
+                if reject_list[data_idx] == 1 and class_id in rgroup[0]:
+                    c = np.argmax(pred_seen[seen_counter - 1])
+                    pa += 1
+                elif reject_list[data_idx] == 1 and class_id in rgroup[1]:
+                    c = rgroup[1][1] - 1
+                    na += 1
+                elif reject_list[data_idx] == 0 and class_id in rgroup[1]:
+                    c = np.argmax(pred_unseen[unseen_counter - 1])
+                    nr += 1
+                elif reject_list[data_idx] == 0 and class_id in rgroup[0]:
+                    c = rgroup[0][1] - 1
+                    pr += 1
+                else:
+                    raise Exception("invalid rejection")
+
+                r[c] = 1
+                if class_id in rgroup[0]:
+                    pred_overall_seen.append(r)
+                else:
+                    pred_overall_unseen.append(r)
+
+                bar.update(data_idx)
+
+        pred_overall_seen = np.array(pred_overall_seen)
+        gt_overall_seen = np.array(gt_overall_seen)
+        pred_overall_unseen = np.array(pred_overall_unseen)
+        gt_overall_unseen = np.array(gt_overall_unseen)
+        pred_overall = np.concatenate([pred_overall_seen, pred_overall_unseen], axis=0)
+        gt_overall = np.concatenate([gt_overall_seen, gt_overall_unseen], axis=0)
+
+        classify_stats_seen = utils.get_statistics(
+            pred_overall_seen,
+            gt_overall_seen,
+            single_label_pred=True
+        )
+        classify_stats_unseen = utils.get_statistics(
+            pred_overall_unseen,
+            gt_overall_unseen,
+            single_label_pred=True
+        )
+        classify_stats_overall = utils.get_statistics(
+            pred_overall,
+            gt_overall,
+            single_label_pred=True
+        )
+        for k in classify_stats_seen:
+            v = classify_stats_seen[k]
+            if k not in seen_stats:
+                seen_stats[k] = list()
+            seen_stats[k].append(v)
+        for k in classify_stats_unseen:
+            v = classify_stats_unseen[k]
+            if k not in unseen_stats:
+                unseen_stats[k] = list()
+            unseen_stats[k].append(v)
+        for k in classify_stats_overall:
+            v = classify_stats_overall[k]
+            if k not in overall_stats:
+                overall_stats[k] = list()
+            overall_stats[k].append(v)
+
+        print("seen   ", utils.dict_to_string_4_print(classify_stats_seen))
+        print("unseen ",  utils.dict_to_string_4_print(classify_stats_unseen))
+        print("overal ", utils.dict_to_string_4_print(classify_stats_overall))
+        print(pa, pr, na, nr)
+        print("----------")
+
+    for k in seen_stats:
+        seen_stats[k] = np.mean(seen_stats[k])
+    for k in unseen_stats:
+        unseen_stats[k] = np.mean(unseen_stats[k])
+    for k in overall_stats:
+        overall_stats[k] = np.mean(overall_stats[k])
+    print("=======")
+    print("seen: %s" % (utils.dict_to_string_4_print(seen_stats)))
+    print("unseen: %s" % (utils.dict_to_string_4_print(unseen_stats)))
+    print("overall: %s" % (utils.dict_to_string_4_print(overall_stats)))
+    print_string += "%.3f/%.3f/%.3f" \
+                    % (1 - seen_stats["single-label-error"],
+                       seen_stats["micro-F1"],
+                       seen_stats["macro-F1"])
+    print_string += ",%.3f/%.3f/%.3f" \
+                    % (1 - unseen_stats["single-label-error"],
+                       unseen_stats["micro-F1"],
+                       unseen_stats["macro-F1"])
+    print_string += ",%.3f/%.3f/%.3f" \
+                    % (1 - overall_stats["single-label-error"],
+                       overall_stats["micro-F1"],
+                       overall_stats["macro-F1"])
+    print(print_string)
+
+
+
+
 
 if __name__ == "__main__":
-    # error_deprecated()
-    # error_seen()
-    error_unseen()
-    # error_unseen_best()
-    # classify_single_label_for_seen("../results/unseen_selected_tfidf_news20_kg3_cluster_3group_only_random2_unseen20-4-14-2-10_max200_cnn_negative5increase3_randomtext/logs/test_0.npz")
+    # error_overall_with_rejector()
+    # exit()
+    if config.model == "cnnfc":
+        error_unseen()
+        error_overall()
+    elif config.model == "rnnfc":
+        error_overall()
+    else:
+        error_unseen()
     pass

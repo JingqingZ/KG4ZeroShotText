@@ -36,13 +36,14 @@ class Controller4Unseen(train_base.Base_Controller):
             class_dict,
             kg_vector_dict,
             word_embed_mat,
+            gpu_config=None,
             random_unseen_class=False,
             random_percentage=0.25,
             random_unseen_class_list=None,
             base_epoch=-1,
             lemma=False
     ):
-        super(Controller4Unseen, self).__init__(model)
+        super(Controller4Unseen, self).__init__(model, gpu_config)
 
         logging = log.Log(sys.stdout, self.log_save_dir + "log-%s" % utils.now2string())
         sys.stdout = logging
@@ -515,17 +516,18 @@ class Controller4Unseen(train_base.Base_Controller):
                 print("[Test] Testing seen classes")
                 stats_seen, pred_seen, gt_seen, align_seen, kg_vector_seen = self.__test__(
                     global_epoch,
-                    [_ for idx, _ in enumerate(seen_test_text_seqs) if idx % 100 == 0],
-                    [_ for idx, _ in enumerate(seen_test_class_list) if idx % 100 == 0],
+                    [_ for idx, _ in enumerate(seen_test_text_seqs) if idx % 50 == 0],
+                    [_ for idx, _ in enumerate(seen_test_class_list) if idx % 50 == 0],
                 )
 
                 # TODO: remove to get full test
+                test_percentage = 10 if config.unseen_rate == 0.25 else 20
                 print("[Test] Testing unseen classes")
                 stats_unseen, pred_unseen, gt_unseen, align_unseen, kg_vector_unseen = self.__test__(
                     global_epoch,
-                    [_ for idx, _ in enumerate(unseen_test_text_seqs) if idx % 10 == 0],
-                    [_ for idx, _ in enumerate(unseen_test_class_list) if idx % 10 == 0],
-                    unseen_only=True
+                    [_ for idx, _ in enumerate(unseen_test_text_seqs) if idx % test_percentage == 0],
+                    [_ for idx, _ in enumerate(unseen_test_class_list) if idx % test_percentage == 0],
+                    unseen_only=False if config.model == "cnnfc" or config.model == "rnnfc" else True
                 )
 
                 np.savez(
@@ -575,12 +577,15 @@ class Controller4Unseen(train_base.Base_Controller):
             assert not self.check_seen(class_id)
 
         # TODO: remove to get full test
-        # print("[Test] Testing seen classes")
-        # state_seen, pred_seen, gt_seen, align_seen, kg_vector_seen = self.__test__(
-        #     global_epoch,
-        #     [_ for idx, _ in enumerate(seen_test_text_seqs) if idx % 1 == 0],
-        #     [_ for idx, _ in enumerate(seen_test_class_list) if idx % 1 == 0],
-        # )
+        if config.model == "cnnfc" or config.model == "rnnfc":
+            print("[Test] Testing seen classes")
+            state_seen, pred_seen, gt_seen, align_seen, kg_vector_seen = self.__test__(
+                global_epoch,
+                [_ for idx, _ in enumerate(seen_test_text_seqs) if idx % 1 == 0],
+                [_ for idx, _ in enumerate(seen_test_class_list) if idx % 1 == 0],
+            )
+        else:
+            state_seen = pred_seen = gt_seen = align_seen = kg_vector_seen = 0
 
         # TODO: remove to get full test
         print("[Test] Testing unseen classes")
@@ -588,21 +593,21 @@ class Controller4Unseen(train_base.Base_Controller):
             global_epoch,
             [_ for idx, _ in enumerate(unseen_test_text_seqs) if idx % 1 == 0],
             [_ for idx, _ in enumerate(unseen_test_class_list) if idx % 1 == 0],
-            unseen_only=True
+            unseen_only=False if config.model == "cnnfc" or config.model == "rnnfc" else True
         )
 
         np.savez(
             self.log_save_dir + "test_full_%d" % global_epoch,
             seen_class=self.seen_class,
             unseen_class=self.unseen_class,
-            # pred_seen=pred_seen,
+            pred_seen=pred_seen,
             pred_unseen=pred_unseen,
-            # gt_seen=gt_seen,
+            gt_seen=gt_seen,
             gt_unseen=gt_unseen,
-            # align_seen=align_seen,
-            # align_unseen=align_unseen,
-            # kg_vector_seen=kg_vector_seen,
-            # kg_vector_unseen=kg_vector_unseen,
+            align_seen=align_seen,
+            align_unseen=align_unseen,
+            kg_vector_seen=kg_vector_seen,
+            kg_vector_unseen=kg_vector_unseen,
             )
 
         # error.rejection_single_label(self.log_save_dir + "test_%d.npz" % global_epoch)
@@ -643,11 +648,14 @@ def run_dbpedia():
         assert class_label_word_id != vocab.unk_id
         assert np.sum(glove_mat[class_label_word_id]) != 0
 
-    kg_vector_dict = dataloader.load_kg_vector(
-        config.zhang15_dbpedia_kg_vector_dir,
-        config.zhang15_dbpedia_kg_vector_prefix,
-        class_dict
-    )
+    if config.model == "cnnfc" or config.model == "rnnfc" or config.model == "vwvc":
+        kg_vector_dict = dict()
+    else:
+        kg_vector_dict = dataloader.load_kg_vector(
+            config.zhang15_dbpedia_kg_vector_dir,
+            config.zhang15_dbpedia_kg_vector_prefix,
+            class_dict
+        )
 
     print("Check NaN in csv ...")
     check_nan_train = dataloader.check_df(config.zhang15_dbpedia_train_path)
@@ -745,9 +753,12 @@ def run_dbpedia():
                 max_length=max_length
             )
             # TODO: if unseen_classes are already selected, set randon_unseen_class=False and provide a list of unseen_classes
+            gpu_config = tf.ConfigProto()
+            gpu_config.gpu_options.per_process_gpu_memory_fraction = config.global_gpu_occupation
             ctl = Controller4Unseen(
                 model=mdl,
                 vocab=vocab,
+                gpu_config=gpu_config,
                 class_dict=class_dict,
                 kg_vector_dict=kg_vector_dict,
                 word_embed_mat=glove_mat,
@@ -760,7 +771,7 @@ def run_dbpedia():
                 ctl.controller(train_text_seqs, train_class_list,
                                train_aug_text_seqs_from_seen, train_aug_class_list_from_seen,
                                test_text_seqs, test_class_list,
-                               rgroup=rgroup, train_epoch=15)
+                               rgroup=rgroup, train_epoch=10)
             else:
                 ctl.controller4test(test_text_seqs, test_class_list, unseen_class_list=ctl.unseen_class,
                                     rgroup=rgroup, base_epoch=config.global_test_base_epoch)
@@ -798,11 +809,14 @@ def run_20news():
         assert class_label_word_id != vocab.unk_id
         assert np.sum(glove_mat[class_label_word_id]) != 0
 
-    kg_vector_dict = dataloader.load_kg_vector(
-        config.news20_kg_vector_dir,
-        config.news20_kg_vector_prefix,
-        class_dict
-    )
+    if config.model == "cnnfc" or config.model == "rnnfc" or config.model == "vwvc":
+        kg_vector_dict = dict()
+    else:
+        kg_vector_dict = dataloader.load_kg_vector(
+            config.news20_kg_vector_dir,
+            config.news20_kg_vector_prefix,
+            class_dict
+        )
 
     print("Check NaN in csv ...")
     check_nan_train = dataloader.check_df(config.news20_train_path)
@@ -900,9 +914,12 @@ def run_20news():
                 max_length=max_length
             )
             # TODO: if unseen_classes are already selected, set randon_unseen_class=False and provide a list of unseen_classes
+            gpu_config = tf.ConfigProto()
+            gpu_config.gpu_options.per_process_gpu_memory_fraction = config.global_gpu_occupation
             ctl = Controller4Unseen(
                 model=mdl,
                 vocab=vocab,
+                gpu_config=gpu_config,
                 class_dict=class_dict,
                 kg_vector_dict=kg_vector_dict,
                 word_embed_mat=glove_mat,
