@@ -839,10 +839,6 @@ def check_tf_idf():
     df["count"] = df["nounadj_selected_tfidf"].str.split().apply(len)
     print(np.percentile(df["count"], 50))
 
-def check_class_cluster():
-    class_clusters = pickle.load(open(config.news20_class_cluster_path, "rb"))
-    for class_label in class_clusters:
-        print(class_label, class_clusters[class_label])
 
 if __name__ == "__main__":
     # kg_vector_1 = pickle.load(open("../wordEmbeddings/KG_VECTORS_1.pickle", "rb"))

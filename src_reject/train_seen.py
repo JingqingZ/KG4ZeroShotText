@@ -35,12 +35,13 @@ class Controller4Seen(train_base.Base_Controller):
             vocab,
             class_dict,
             word_embed_mat,
+            gpu_config=None,
             random_unseen_class=False,
             random_percentage=0.25,
             random_unseen_class_list=None,
             base_epoch=-1,
     ):
-        super(Controller4Seen, self).__init__(model)
+        super(Controller4Seen, self).__init__(model, gpu_config)
 
         logging = log.Log(sys.stdout, self.log_save_dir + "log-%s" % utils.now2string())
         sys.stdout = logging
@@ -105,14 +106,15 @@ class Controller4Seen(train_base.Base_Controller):
     def prepro_encode(self, textlist, is_train):
         newtextlist = list()
         for idx, text in enumerate(textlist):
-            if len(text[1:-1]) > self.model.max_length:
-                if is_train:
-                    startid = 1 + randint(0, len(text[1:-1]) - self.model.max_length)
-                else:
-                    # startid = 1 + (len(text[1:-1]) - self.model.max_length) // 2
-                    startid = 1
-            else:
-                startid = 1
+            # if len(text[1:-1]) > self.model.max_length:
+            #     if is_train:
+            #         startid = 1 + randint(0, len(text[1:-1]) - self.model.max_length)
+            #     else:
+            #         # startid = 1 + (len(text[1:-1]) - self.model.max_length) // 2
+            #         startid = 1
+            # else:
+            #     startid = 1
+            startid = 1
             newtextlist.append(text[startid:-1] + [self.vocab.pad_id])
         newtextlist = tl.prepro.pad_sequences(newtextlist, maxlen=self.model.max_length, dtype='int64', padding='post', truncating='post', value=self.vocab.pad_id)
         for idx, text in enumerate(newtextlist):
@@ -305,12 +307,14 @@ class Controller4Seen(train_base.Base_Controller):
 
         for epoch in range(train_epoch + 1):
 
-            self.__train__(
-                global_epoch,
-                train_text_seqs,
-                train_class_list,
-                # max_train_steps=5000
-            )
+            for _ in range(config.small_epoch):
+                print("epoch %d %d/%d" % (global_epoch, _ + 1, config.small_epoch))
+                self.__train__(
+                    global_epoch,
+                    train_text_seqs,
+                    train_class_list,
+                    # max_train_steps=5000
+                )
 
             if global_epoch > self.base_epoch and global_epoch % save_test_per_epoch == 0:
                 self.save_model(
@@ -370,7 +374,7 @@ class Controller4Seen(train_base.Base_Controller):
         )
 
         np.savez(
-            self.log_save_dir + "test_%d" % global_epoch,
+            self.log_save_dir + "test_full_%d" % global_epoch,
             seen_class=self.seen_class,
             unseen_class=self.unseen_class,
             pred_seen=pred_seen,
@@ -467,6 +471,8 @@ def run_dbpedia():
                 number_of_seen_classes=len(rgroup[0])
             )
             # TODO: if unseen_classes are already selected, set randon_unseen_class=False and provide a list of unseen_classes
+            gpu_config = tf.ConfigProto()
+            gpu_config.gpu_options.per_process_gpu_memory_fraction = config.global_gpu_occupation
             ctl = Controller4Seen(
                 model=mdl,
                 vocab=vocab,
@@ -475,10 +481,11 @@ def run_dbpedia():
                 random_unseen_class=False,
                 random_unseen_class_list=rgroup[1],
                 base_epoch=-1,
+                gpu_config=gpu_config
             )
-            ctl.controller(train_text_seqs, train_class_list, test_text_seqs, test_class_list, train_epoch=10)
+            ctl.controller(train_text_seqs, train_class_list, test_text_seqs, test_class_list, train_epoch=2)
             # ctl.controller4test(test_text_seqs, test_class_list, unseen_class_list, base_epoch=5)
-            ctl.controller4test(test_text_seqs, test_class_list, unseen_class_list=ctl.unseen_class, base_epoch=10)
+            ctl.controller4test(test_text_seqs, test_class_list, unseen_class_list=ctl.unseen_class, base_epoch=2)
 
             ctl.sess.close()
 
@@ -526,8 +533,8 @@ def run_20news():
 
     train_text_seqs = dataloader.load_data_from_text_given_vocab(
         config.news20_train_path, vocab, config.news20_train_processed_path,
-        # column="selected_tfidf", force_process=False
-        column="selected", force_process=True
+        column="selected_tfidf", force_process=False
+        # column="selected", force_process=False
         # column="text", force_process=True
     )
 
@@ -538,12 +545,10 @@ def run_20news():
 
     test_text_seqs = dataloader.load_data_from_text_given_vocab(
         config.news20_test_path, vocab, config.news20_test_processed_path,
-        # column="selected_tfidf", force_process=False
-        column="selected", force_process=True
+        column="selected_tfidf", force_process=False
+        # column="selected", force_process=False
         # column="text", force_process=True
     )
-    exit()
-
     # import playground
     # playground.tf_idf_document(vocab, glove_mat, train_text_seqs, config.news20_train_path, config.news20_train_path)
     # playground.tf_idf_document(vocab, glove_mat, test_text_seqs, config.news20_test_path, config.news20_test_path)
@@ -571,13 +576,15 @@ def run_20news():
                 #TODO: mistake: the model name should be selected_tfidf
                 model_name="seen_selected_tfidf_news20_vwonly_random%d_unseen%s_max%d_cnn" \
                            % (i + 1, "-".join(str(_) for _ in rgroup[1]), max_length),
-                start_learning_rate=0.001,
+                start_learning_rate=0.0004,
                 decay_rate=0.5,
-                decay_steps=3000,
+                decay_steps=600,
                 max_length=max_length,
                 number_of_seen_classes=len(rgroup[0])
             )
             # TODO: if unseen_classes are already selected, set randon_unseen_class=False and provide a list of unseen_classes
+            gpu_config = tf.ConfigProto()
+            gpu_config.gpu_options.per_process_gpu_memory_fraction = config.global_gpu_occupation
             ctl = Controller4Seen(
                 model=mdl,
                 vocab=vocab,
@@ -586,9 +593,10 @@ def run_20news():
                 random_unseen_class=False,
                 random_unseen_class_list=rgroup[1],
                 base_epoch=-1,
+                gpu_config=gpu_config
             )
-            ctl.controller(train_text_seqs, train_class_list, test_text_seqs, test_class_list, train_epoch=100)
-            ctl.controller4test(test_text_seqs, test_class_list, unseen_class_list=ctl.unseen_class, base_epoch=100)
+            ctl.controller(train_text_seqs, train_class_list, test_text_seqs, test_class_list, train_epoch=10)
+            ctl.controller4test(test_text_seqs, test_class_list, unseen_class_list=ctl.unseen_class, base_epoch=10)
 
             ctl.sess.close()
             time.sleep(20)
@@ -680,9 +688,12 @@ def run_amazon():
             ctl.sess.close()
 
 if __name__ == "__main__":
-    # run_dbpedia()
-    run_20news()
-    # run_amazon()
+    if config.dataset == "dbpedia":
+        run_dbpedia()
+    elif config.dataset == "20news":
+        run_20news()
+    else:
+        raise Exception("config.dataset %s not found" % config.dataset)
     pass
 
 

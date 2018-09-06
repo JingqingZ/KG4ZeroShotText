@@ -394,7 +394,6 @@ class Model4Unseen(model_base.Base_Model):
         return net_out, net_seq2seq
 
 
-
     def __create_loss__(self):
         if config.model == "autoencoder":
 

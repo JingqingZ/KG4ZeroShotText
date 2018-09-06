@@ -117,7 +117,7 @@ if dataset == "dbpedia" and unseen_rate == 0.25:
 elif dataset == "dbpedia" and unseen_rate == 0.5:
     rejector_file = "./dbpedia_unseen0.50_augmented8000.pickle"
 elif dataset == "20news" and unseen_rate == 0.25:
-    rejector_file = "./20news_unseen0.25_augmented2000.pickle"
+    rejector_file = "./20news_unseen0.25_augmented4000.pickle"
 elif dataset == "20news" and unseen_rate == 0.5:
     rejector_file = "./20news_unseen0.50_augmented3000.pickle"
 else:

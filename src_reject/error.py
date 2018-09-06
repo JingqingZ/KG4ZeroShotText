@@ -579,7 +579,13 @@ def normalise(x):
 def error_deprecated():
     reject_list = list()
     num = 10
-    for i in range(num):
+    if config.dataset == "dbpedia":
+        random_group = dataloader.get_random_group(config.zhang15_dbpedia_class_random_group_path)
+    elif config.dataset == "20news":
+        random_group = dataloader.get_random_group(config.news20_class_random_group_path)
+    else:
+        raise Exception("invalid dataset")
+    for i, rgroup in enumerate(random_group):
         # calculate_error("../results/key_zhang15_dbpedia_4of4/logs/test_5_att.npz")
         # filename = "../results/key_zhang15_dbpedia_kg3_random%d_unseen0.25_max100_cnn_negative%d/logs/test_%d.npz" \
         #            % (5, 7, 10)
@@ -602,8 +608,10 @@ def error_deprecated():
         # filename = "../results/selected_tfidf_zhang15_dbpedia_kg3_cluster_3group_only_random%d_unseen0.25_max50_cnn_negative5increase2_randomtext/logs/test_5.npz" \
         # filename = "../results/full_zhang15_dbpedia_kg3_cluster_3group_only_random%d_unseen0.25_max50_cnn_negative5increase2_randomtext/logs/test_5.npz" \
         # filename = "../results/seen_full_zhang15_dbpedia_vwonly_random%d_unseen0.25_max50_cnn_negative5increase2_randomtext/logs/test_5.npz" \
-        filename = "../results/unseen_full_zhang15_dbpedia_kg3_cluster_3group_random%d_unseen0.25_max50_cnn_negative5increase2_randomtext/logs/test_5.npz" \
-                          % (i + 1)
+        # filename = "../results/unseen_full_zhang15_dbpedia_kg3_cluster_3group_random%d_unseen0.25_max50_cnn_negative5increase2_randomtext/logs/test_5.npz" \
+        #                   % (i + 1)
+        filename = "../results/seen_selected_tfidf_news20_vwonly_random%d_unseen%s_max%d_cnn/logs/test_%d.npz" \
+                        % (i + 1, "-".join(str(_) for _ in rgroup[1]), 200, 10)
 
         # pred_seen, pred_unseen, pred_both, gt_both = classify_single_label(filename)
         # classify_multiple_label(filename)
@@ -680,13 +688,13 @@ def classify_single_label_for_seen(filename, rgroup=None):
     data = np.load(filename)
 
     seen_class = np.nonzero(np.sum(data["gt_seen"], axis=0))[0]
-    seen_class += 1
+    # seen_class += 1
     # unseen_class = data["unseen_class"]
 
     if rgroup is None:
         # print(data["seen_class"])
         # print(seen_class)
-        # assert np.array_equal(data["seen_class"], seen_class)
+        assert np.array_equal(data["seen_class"], seen_class + 1)
         pass
     else:
         assert np.array_equal(seen_class, np.array(rgroup[0]))
@@ -729,13 +737,17 @@ def error_seen():
         #            % (i + 1, "-".join(str(_) for _ in rgroup[1]), 200, 30 if i < 5 else 100)
         epoch = config.global_test_base_epoch
         if config.dataset == "dbpedia":
-            filename = "../results/unseen_full_zhang15_dbpedia_kg3_cluster_3group_%s_random%d_unseen%s_max%d_cnn_negative%dincrease%d_randomtext_aug%d/logs/test%s_%d.npz" \
-                       % (config.model, i + 1, "-".join(str(_) for _ in rgroup[1]), 80, config.negative_sample, config.negative_increase, config.augmentation,
-                          "" if not config.global_full_test else "_full", epoch)
+            filename = "../results/seen_full_zhang15_dbpedia_vwonly_random%d_unseen%s_max%d_cnn/logs/test_full_%d.npz" \
+                            % (i + 1, "-".join(str(_) for _ in rgroup[1]), 50, 2)
+            # filename = "../results/unseen_full_zhang15_dbpedia_kg3_cluster_3group_%s_random%d_unseen%s_max%d_cnn_negative%dincrease%d_randomtext_aug%d/logs/test%s_%d.npz" \
+            #            % (config.model, i + 1, "-".join(str(_) for _ in rgroup[1]), 80, config.negative_sample, config.negative_increase, config.augmentation,
+            #               "" if not config.global_full_test else "_full", epoch)
         elif config.dataset == "20news":
-            filename = "../results/unseen_selected_tfidf_news20_kg3_cluster_3group_%s_random%d_unseen%s_max%d_cnn_negative%dincrease%d_randomtext_aug%d/logs/test%s_%d.npz" \
-                       % (config.model, i + 1, "-".join(str(_) for _ in rgroup[1]), 50, config.negative_sample, config.negative_increase, config.augmentation,
-                          "" if not config.global_full_test else "_full", epoch)
+            filename = "../results/seen_selected_tfidf_news20_vwonly_random%d_unseen%s_max%d_cnn/logs/test_full_%d.npz" \
+                             % (i + 1, "-".join(str(_) for _ in rgroup[1]), 200, 10)
+            # filename = "../results/unseen_selected_tfidf_news20_kg3_cluster_3group_%s_random%d_unseen%s_max%d_cnn_negative%dincrease%d_randomtext_aug%d/logs/test%s_%d.npz" \
+            #            % (config.model, i + 1, "-".join(str(_) for _ in rgroup[1]), 50, config.negative_sample, config.negative_increase, config.augmentation,
+            #               "" if not config.global_full_test else "_full", epoch)
         else:
             raise Exception("invalid dataset")
 
@@ -1102,15 +1114,28 @@ def error_overall_with_rejector():
         print(len(reject_list))
 
         if config.dataset == "dbpedia" and config.unseen_rate == 0.25:
-            unseen_filename = "../results/unseen_full_zhang15_dbpedia_kg3_cluster_3group_random%d_unseen%s_max%d_cnn_negative%dincrease3_randomtext/logs/test_full_%d.npz" \
-                           % (i + 1, "-".join(str(_) for _ in rgroup[1]), 80, 5, 9)
+            # unseen_filename = "../results/unseen_full_zhang15_dbpedia_kg3_cluster_3group_random%d_unseen%s_max%d_cnn_negative%dincrease3_randomtext/logs/test_full_%d.npz" \
+            #                % (i + 1, "-".join(str(_) for _ in rgroup[1]), 80, 5, 9)
+            unseen_filename = "../results/unseen_full_zhang15_dbpedia_kg3_cluster_3group_%s_random%d_unseen%s_max%d_cnn_negative%dincrease%d_randomtext_aug%d/logs/test_full_%d.npz" \
+                       % (config.model, i + 1, "-".join(str(_) for _ in rgroup[1]), 80, config.negative_sample, config.negative_increase, config.augmentation, config.global_test_base_epoch)
             seen_filename = "../results/seen_full_zhang15_dbpedia_vwonly_random%d_unseen%s_max%d_cnn/logs/test_%d.npz" \
                            % (i + 1, "-".join(str(_) for _ in rgroup[1]), 50, 9)
+        elif config.dataset == "dbpedia" and config.unseen_rate == 0.5:
+            unseen_filename = "../results/unseen_full_zhang15_dbpedia_kg3_cluster_3group_%s_random%d_unseen%s_max%d_cnn_negative%dincrease%d_randomtext_aug%d/logs/test_full_%d.npz" \
+                       % (config.model, i + 1, "-".join(str(_) for _ in rgroup[1]), 80, config.negative_sample, config.negative_increase, config.augmentation, config.global_test_base_epoch)
+            seen_filename = "../results/seen_full_zhang15_dbpedia_vwonly_random%d_unseen%s_max%d_cnn/logs/test_full_%d.npz" \
+                       % (i + 1, "-".join(str(_) for _ in rgroup[1]), 50, 2)
         elif config.dataset == "20news" and config.unseen_rate == 0.25:
             unseen_filename = "../results/unseen_selected_tfidf_news20_kg3_cluster_3group_only_random%d_unseen%s_max%d_cnn_negative%dincrease%d_randomtext/logs/test_full_%d.npz" \
-                          % (i + 1, "-".join(str(_) for _ in rgroup[1]), 50, 1, 1, 1)
+                           % (i + 1, "-".join(str(_) for _ in rgroup[1]), 50, 1, 1, 1)
             seen_filename = "../results/seen_selected_tfidf_news20_vwonly_random%d_unseen%s_max%d_cnn/logs/test_%d.npz" \
-                            % (i + 1, "-".join(str(_) for _ in rgroup[1]), 200, 30)
+                           % (i + 1, "-".join(str(_) for _ in rgroup[1]), 200, 30)
+        elif config.dataset == "20news" and config.unseen_rate == 0.5:
+            unseen_filename = "../results/unseen_selected_tfidf_news20_kg3_cluster_3group_%s_random%d_unseen%s_max%d_cnn_negative%dincrease%d_randomtext_aug%d/logs/test_full_%d.npz" \
+                           % (config.model, i + 1, "-".join(str(_) for _ in rgroup[1]), 50, config.negative_sample, config.negative_increase, config.augmentation, config.global_test_base_epoch)
+            seen_filename = "../results/seen_selected_tfidf_news20_vwonly_random%d_unseen%s_max%d_cnn/logs/test_%d.npz" \
+                           % (i + 1, "-".join(str(_) for _ in rgroup[1]), 200, 10)
+
         else:
             raise Exception("exception")
 
@@ -1257,16 +1282,14 @@ def error_overall_with_rejector():
     print(print_string)
 
 
-
-
-
 if __name__ == "__main__":
-    # error_overall_with_rejector()
-    # exit()
+    error_overall_with_rejector()
+    # error_seen()
+    exit()
     if config.model == "cnnfc":
         error_unseen()
         error_overall()
-    elif config.model == "rnnfc":
+    elif config.model == "rnnfc" or config.model == "autoencoder":
         error_overall()
     else:
         error_unseen()
