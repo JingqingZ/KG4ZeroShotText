@@ -22,3 +22,8 @@ src/classifier_NN.py
 *.pickle
 src_key/data/*
 *.pyc
+*.zip
+src/
+src_key/
+src_reject/*.sh
+src_submit/
