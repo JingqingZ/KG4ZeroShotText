@@ -42,7 +42,7 @@ In order to run the code, please check the following issues.
 - [x] Package dependencies:
     - Python 3.5
     - TensorFlow 1.11.0
-    - [TensorLayer] 1.11.3
+    - [TensorLayer] 1.11.0
     - Numpy 1.14.5
     - Pandas 0.21.0
     - NLTK 3.2.5
