@@ -1,7 +1,11 @@
 data/
 data/arxiv/*
 data/wiki/*
+data/review/*
 data/dbpedia/*
+data/glove/*
+data/newsgroup/*
+paper/*
 wordEmbeddings/
 .idea/
 data/wiki/*.txt
@@ -16,3 +20,4 @@ src/*.npz
 src_key/.ipynb_checkpoints
 src/classifier_NN.py
 *.pickle
+src_key/data/*
