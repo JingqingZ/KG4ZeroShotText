@@ -17,13 +17,26 @@ END_ID = '<END_ID>'
 PAD_ID = '<PAD_ID>'
 UNK_ID = '<UNK_ID>'
 
+def get_random_group(filename):
+    random_group = list()
+    with open(filename, "r") as f:
+        for line in f:
+            classlist = line.split("|")
+            seen_class = [int(_) for _ in classlist[0].split(",")]
+            unseen_class = [int(_) for _ in classlist[1].split(",")]
+            random_group.append([seen_class, unseen_class])
+    print("Random Group: \n%s" % "\n".join([str(rgroup) for rgroup in random_group]))
+    return random_group
+
 
 def check_df(filename):
     df = pd.read_csv(filename, index_col=0)
     nan = df.isnull().values.any()
-    df.dropna(inplace=True)
-    df.reset_index(drop=True)
-    df.to_csv(filename)
+    # if nan:
+    #     print(df.isnull())
+    # df.dropna(inplace=True)
+    # df.reset_index(drop=True)
+    # df.to_csv(filename)
     return nan
 
 def preprocess(textlist):
@@ -114,7 +127,10 @@ def build_vocabulary_from_full_corpus(filename, vocab_file, column, min_word_cou
     return vocab
 
 def load_data_class(filename, column):
-    df = pd.read_csv(filename, index_col=0)
+    try:
+        df = pd.read_csv(filename, index_col=0)
+    except:
+        df = pd.read_csv(filename, index_col=0, encoding="latin-1")
     data_class_list = df[column].tolist()
     return data_class_list
 
@@ -138,7 +154,10 @@ def load_data_from_text_given_vocab(filename, vocab, processed_file, column, for
 
     else:
 
-        df = pd.read_csv(filename, index_col=0)
+        try:
+            df = pd.read_csv(filename, index_col=0)
+        except:
+            df = pd.read_csv(filename, index_col=0, encoding="latin-1")
 
         full_text_list = get_text_list(df, column)
         full_text_list = preprocess(full_text_list)

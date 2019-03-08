@@ -11,7 +11,6 @@ import dataloader
 import nltk
 import json
 
-
 def doing_sth_on_chen14():
 
     # get class_dict
@@ -492,7 +491,7 @@ def doing_sth_on_20_news():
     collect_full_and_split()
 
 def get_a_and_n(text):
-    text_with_tag = nltk.pos_tag(text.split())  # a list of words à a list of words with part of speech
+    text_with_tag = nltk.pos_tag(text.split())  # a list of words a list of words with part of speech
     selected = [text_tag[0] for text_tag in text_with_tag \
                    if text_tag[1] in config.pos_dict and \
                    (config.pos_dict[text_tag[1]] == 'a' or config.pos_dict[text_tag[1]] == 'n')]
@@ -571,7 +570,6 @@ def analyse_definition():
     print("Full voc:", len(list(all_words)))
     print("Full def:", len(list(all_defs)))
 
-
 def analysis_num_in_vocab():
     with open(config.zhang15_dbpedia_vocab_path) as f:
         num = 0
@@ -584,7 +582,6 @@ def analysis_num_in_vocab():
             except:
                 continue
         print(num)
-
 
 def visualise_wordvector():
 
@@ -635,67 +632,35 @@ def visualise_wordvector():
     pylab.scatter(y[:, 0], y[:, 1], 4, labels)
     pylab.show()
 
-def tf_idf_document():
-    vocab = dataloader.build_vocabulary_from_full_corpus(
-        config.zhang15_dbpedia_full_data_path, config.zhang15_dbpedia_vocab_path, column="text", force_process=False,
-        min_word_count=55
-    )
+def tf_idf_document(vocab, glove_mat, text_seqs, df_filename, df_out_filename):
 
-    class_dict = dataloader.load_class_dict(
-        class_file=config.zhang15_dbpedia_class_label_path,
-        class_code_column="ClassCode",
-        class_name_column="ConceptNet"
-    )
-
-    glove_mat = dataloader.load_glove_word_vector(
-        config.word_embed_file_path, config.zhang15_dbpedia_word_embed_matrix_path, vocab, force_process=False
-    )
-
-    assert np.sum(glove_mat[vocab.start_id]) == 0
-    assert np.sum(glove_mat[vocab.end_id]) == 0
-    assert np.sum(glove_mat[vocab.unk_id]) == 0
-    assert np.sum(glove_mat[vocab.pad_id]) == 0
-
-    train_class_list = dataloader.load_data_class(
-        # filename=config.zhang15_dbpedia_train_path,
-        filename=config.zhang15_dbpedia_test_path,
-        column="class",
-    )
-
-    train_text_seqs = dataloader.load_data_from_text_given_vocab(
-        # config.zhang15_dbpedia_train_path, vocab, config.zhang15_dbpedia_train_processed_path,
-        config.zhang15_dbpedia_test_path, vocab, config.zhang15_dbpedia_test_processed_path,
-        column="text", force_process=False
-    )
-
-    train_df = pd.read_csv(
-        # config.zhang15_dbpedia_train_path,
-        config.zhang15_dbpedia_test_path,
+    df = pd.read_csv(
+        df_filename,
         index_col=0
     )
-    train_df.drop(columns=[col for col in train_df.columns if "Unnamed:" in str(col)], inplace=True)
+    df.drop(columns=[col for col in df.columns if "Unnamed:" in str(col)], inplace=True)
 
-    train_df["selected_tfidf"] = ""
+    column_name = "selected_tfidf"
+    df[column_name] = ""
 
-    assert len(train_text_seqs) == len(train_class_list)
-    assert len(train_class_list) == train_df.shape[0]
+    assert len(text_seqs) == df.shape[0]
 
     print("IDF")
     appearance_of_word = np.zeros(vocab.unk_id + 1)
-    for idx, document in enumerate(train_text_seqs):
+    for idx, document in enumerate(text_seqs):
         word_set = set()
         for wordid in document:
             if wordid not in word_set:
                 appearance_of_word[wordid] += 1
             word_set.add(wordid)
 
-    total_number_documents = len(train_text_seqs)
+    total_number_documents = len(text_seqs)
     idf_word = np.log(total_number_documents / (1 + appearance_of_word))
 
     print("DF")
-    with progressbar.ProgressBar(max_value=len(train_text_seqs)) as bar:
+    with progressbar.ProgressBar(max_value=len(text_seqs)) as bar:
         # counting numbers
-        for idx, document in enumerate(train_text_seqs):
+        for idx, document in enumerate(text_seqs):
             number_of_word = dict()
             for wordid in document:
                 # if the word is not found in glove then ignore the word
@@ -709,22 +674,22 @@ def tf_idf_document():
             tfidf_word = {k: v * idf_word[k] for k, v in tf_word.items()}
 
             # find top k words in this doument
-            k = max(len(document) // 2, 10)
+            k = max(len(document) // 4, 10)
             k = min(k, len(document))
+
+            # k = min(100, len(document) // 2)
 
             import operator
             sorted_tfidf = sorted(tfidf_word.items(), key=operator.itemgetter(1), reverse=True)
             topk = {t[0]: t[1] for t in sorted_tfidf[:k]}
 
             # save to df and then csv
-            train_df.set_value(idx, "selected_tfidf", " ".join([vocab.id_to_word(wordid) for wordid in document if wordid in topk]))
-            # print(train_df.iloc[idx]["text"])
-            # print(train_df.iloc[idx]["selected_tfidf"])
+            df.set_value(idx, column_name, " ".join([vocab.id_to_word(wordid) for wordid in document if wordid in topk]))
+            # print(df.iloc[idx]["text"])
+            # print(df.iloc[idx]["selected_tfidf"])
             bar.update(idx)
 
-    train_df.to_csv("sample.csv")
-
-
+    df.to_csv(df_out_filename)
 
 def tf_idf_category():
     vocab = dataloader.build_vocabulary_from_full_corpus(
@@ -821,6 +786,60 @@ def tf_idf_category():
     with open(config.zhang15_dbpedia_dir + "TFIDF_class.pkl", "wb") as f:
         pickle.dump(tfidf_dict_list, f)
 
+def generate_random_group(classfilename, outfilename, unseen_rate, group_num):
+    if os.path.exists(outfilename):
+        commandin = input("Random group file already exists, sure to move on? [y/n]")
+        if commandin[0] == "y":
+            pass
+        else:
+            return
+
+    class_dict = dataloader.load_class_dict(
+        class_file=classfilename,
+        class_code_column="ClassCode",
+        class_name_column="ConceptNet"
+    )
+    num_class = len(class_dict.keys())
+    num_unseen_class = int(num_class * unseen_rate)
+    class_id_list = list(class_dict.keys())
+
+    unseen_class_num_chosen = dict()
+    for class_id in class_dict:
+        unseen_class_num_chosen[class_id] = 0
+
+    with open(outfilename, "w") as f:
+        for g in range(group_num):
+            unseen_class = random.sample(class_id_list, k=num_unseen_class)
+            for class_id in unseen_class:
+                unseen_class_num_chosen[class_id] += 1
+            seen_class = list()
+            for class_id in class_id_list:
+                if class_id not in unseen_class:
+                    seen_class.append(class_id)
+            rgstr = "%s|%s" % (",".join(str(_) for _ in seen_class), ",".join(str(_) for _ in unseen_class))
+            print(rgstr)
+            f.write(rgstr + "\n")
+
+    print("\n".join("%d:%d" % (t[0], t[1]) for t in sorted(unseen_class_num_chosen.items(), key=lambda x: x[1], reverse=True)))
+
+def check_tf_idf():
+    # pd.options.display.max_colwidth = 1000
+    df = pd.read_csv(config.news20_train_path)
+    # print(df[["text", "selected", "selected_tfidf", "nounadj_selected_tfidf"]][:1])
+
+    df["count"] = df["text"].str.split().apply(len)
+    print(np.percentile(df["count"], 50))
+
+    df["count"] = df["selected"].str.split().apply(len)
+    print(np.percentile(df["count"], 50))
+
+    df["count"] = df["selected_tfidf"].str.split().apply(len)
+    print(np.percentile(df["count"], 50))
+
+    df["count"] = df["nounadj_selected_tfidf"].str.split().apply(len)
+    print(np.percentile(df["count"], 50))
+
+
 if __name__ == "__main__":
     # kg_vector_1 = pickle.load(open("../wordEmbeddings/KG_VECTORS_1.pickle", "rb"))
     # print(kg_vector_1.keys())
@@ -891,6 +910,7 @@ if __name__ == "__main__":
     # tf_idf_document()
     # tf_idf_category()
 
+    '''
     df = pd.read_csv(config.zhang15_dbpedia_train_path, index_col=0)
     for i in range(df.shape[0]):
         if type(df.iloc[i]["selected_tfidf"]) != str:
@@ -898,6 +918,23 @@ if __name__ == "__main__":
             print(df.iloc[i]["text"])
             print(df.iloc[i]["selected_tfidf"])
             exit()
+    '''
+
+    # generate_random_group(config.zhang15_dbpedia_class_label_path, config.zhang15_dbpedia_class_random_group_path, 0.25, 10)
+    # generate_random_group(config.news20_class_label_path, config.news20_class_random_group_path, 0.25, 10)
+    # generate_random_group(config.chen14_elec_class_label_path, config.chen14_elec_class_random_group_path, 0.25, 10)
+
+    # generate_random_group(config.zhang15_dbpedia_class_label_path, config.zhang15_dbpedia_class_random_group_path, 0.5, 10)
+    # generate_random_group(config.news20_class_label_path, config.news20_class_random_group_path, 0.5, 10)
+    # generate_random_group(config.chen14_elec_class_label_path, config.chen14_elec_class_random_group_path, 0.5, 10)
+
+    # generate_random_group(config.zhang15_dbpedia_class_label_path, config.zhang15_dbpedia_class_random_group_path, 0.75, 10)
+    # generate_random_group(config.news20_class_label_path, config.news20_class_random_group_path, 0.75, 10)
+    # generate_random_group(config.chen14_elec_class_label_path, config.chen14_elec_class_random_group_path, 0.75, 10)
+
+    # check_tf_idf()
+
+    # check_class_cluster()
     pass
 
 

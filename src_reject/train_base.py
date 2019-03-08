@@ -21,17 +21,20 @@ import log
 import utils
 import error
 import config
-import model
+import model_base
 import dataloader
 
 results_path = "../results/"
 
 class Base_Controller():
 
-    def __init__(self, model):
+    def __init__(self, model, gpu_config=None):
         self.model = model
         self.saver = tf.train.Saver(max_to_keep=200)
-        self.sess = tf.Session()
+        if gpu_config is None:
+            self.sess = tf.Session()
+        else:
+            self.sess = tf.Session(config=gpu_config)
         tl.layers.initialize_global_variables(self.sess)
         self.__init_path__()
         self.__init_mkdir__()
