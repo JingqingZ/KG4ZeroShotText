@@ -1,4 +1,4 @@
-# Zero-shot Multi-label Text Classification via Knowledge Graph
+# Integrating Semantic Knowledge to Tackle Zero-shot Text Classification
 
 ### Package:
 - Python 3.5
