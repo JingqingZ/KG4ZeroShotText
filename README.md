@@ -12,6 +12,20 @@ Paper link: Pending
 4. [Citation](#Citation)
 
 <h2 id="Abstract">Abstract</h2>
+Insufficient or even unavailable training data of emerging classes 
+is a big challenge of many classification tasks, including text 
+classification. Recognising text documents of classes that have 
+never been seen in the learning stage, so-called zero-shot text 
+classification, is therefore difficult and only limited previous 
+works tackled this problem. In this paper, we propose a two-phase 
+framework together with data augmentation and feature augmentation 
+to solve this problem. Four kinds of semantic knowledge 
+(word embeddings, class descriptions, class hierarchy, and a general 
+knowledge graph) are incorporated into the proposed framework to 
+deal with instances of unseen classes effectively. Experimental 
+results show that each and the combination of the two phases 
+clearly outperform baseline and recent approaches in classifying 
+real-world texts under the zero-shot scenario.
 
 <h2 id="Code">Code</h2>
 
@@ -92,7 +106,11 @@ The arguments of the commands represent
 * `baseepoch`: Optional, you may want to specify which epoch to test.
 
 <h2 id="Acknowledgement">Acknowledgement</h2>
-We would like to thank Douglas McIlwraith, Nontawat Charoenphakdee, and three anonymous reviewers for helpful suggestions. Jingqing and Piyawat would also like to thank the support from [LexisNexis HPCC Systems Academic Program] and Anandamahidol Foundation, respectively.
+We would like to thank Douglas McIlwraith, Nontawat Charoenphakdee, 
+and three anonymous reviewers for helpful suggestions. Jingqing and 
+Piyawat would also like to thank the support from 
+[LexisNexis HPCC Systems Academic Program] and Anandamahidol 
+Foundation, respectively.
 
 [LexisNexis HPCC Systems Academic Program]: https://hpccsystems.com/community/academics
 
