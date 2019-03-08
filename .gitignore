@@ -27,3 +27,4 @@ src/
 src_key/
 src_reject/*.sh
 src_submit/
+test_env/
