@@ -25,6 +25,8 @@ src_key/data/*
 *.zip
 src/
 src_key/
-src_reject/*.sh
+src_reject/test.sh
+src_reject/test4peter.sh
+src_reject/run_arx.sh
 src_submit/
 test_env/
