@@ -21,3 +21,4 @@ src_key/.ipynb_checkpoints
 src/classifier_NN.py
 *.pickle
 src_key/data/*
+*.pyc
