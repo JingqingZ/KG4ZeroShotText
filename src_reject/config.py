@@ -4,7 +4,7 @@ import argparse
 parser = argparse.ArgumentParser(description='configurations')
 parser.add_argument("--data",  type=str, required=True, help="dataset: dbpedia or 20news")
 parser.add_argument("--unseen", type=float, required=True, help="unseen rate: 0.25 0.5 0.75")
-parser.add_argument("--aug", type=int, required=True, help="augmentation: 0 4000 8000 12000 16000 20000")
+# parser.add_argument("--aug", type=int, required=True, help="augmentation: 0 4000 8000 12000 16000 20000")
 parser.add_argument("--model", type=str, required=True, help="model: vwvcvkg vwvc vwvkg vcvkg kgonly cnnfc rnnfc")
 parser.add_argument("--ns", type=int, required=True, help="negative samples: integer, the ratio of positive and negative samples, the higher the more negative samples")
 parser.add_argument("--ni", type=int, required=True, help="negative increase: integer, the speed of increasing negative samples during training per epoch")
@@ -45,7 +45,7 @@ batch_size = 32
 # unseen_rate = 0.25
 unseen_rate = args.unseen
 
-augmentation = args.aug
+augmentation = 0
 assert augmentation >= 0
 
 model = args.model
