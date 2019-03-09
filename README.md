@@ -52,7 +52,7 @@ In order to run the code, please check the following issues.
     - [DBpedia ontology dataset](https://github.com/zhangxiangxiao/Crepe)
     - [20 Newsgroups original 19997 docs](http://qwone.com/~jason/20Newsgroups/)
 - [x] Intermediate files (after preprocessing)
-- [x] Check [config.py](src_reject/config.py) and update the locations of data files accordingly.
+- [x] Check [config.py](src_reject/config.py) and update the locations of data files accordingly. Note that not all 
 
 [TensorLayer]: https://github.com/tensorlayer/tensorlayer
 
@@ -73,7 +73,7 @@ The arguments of the commands represent
 * `unseen`: Rate of unseen classes, either `0.25` or `0.5`.
 * `model`: The model specified to train the model. This argument can only be
     * `vw`: the inputs are embedding of words (from text)
-* `sepoch`: Repeat training of each epoch for several times. The ratio of positive/negative samples and learning rate will keep consistent in one epoch no mather how many times the epoch is repeated.
+* `sepoch`: Repeat training of each epoch for several times. The ratio of positive/negative samples and learning rate will keep consistent in one epoch no matter how many times the epoch is repeated.
 * `train`: In Phase 1, this argument does not affect the program. The program will run training and testing together.
 * `rgidx`: Optional, Random group starting index: e.g. if 5, the training will start from the 5th random group, by default `1`. This argument is used when the program is accidentally interrupted.
 * `gpu`: Optional, GPU occupation percentage, by default `1.0`, which means full occupation of available GPUs.

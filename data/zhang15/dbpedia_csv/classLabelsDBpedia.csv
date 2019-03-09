@@ -1,0 +1,15 @@
+ClassCode,ClassLabel,ClassDescription,DBpediaManual,ConceptNet,Count
+1,Company,,http://dbpedia.org/resource/Company,company,40000
+2,Educational Institution,,http://dbpedia.org/resource/Education,education,40000
+3,Artist,,http://dbpedia.org/resource/Artist,artist,40000
+4,Athlete,,http://dbpedia.org/resource/Athlete,athlete,40000
+5,Office Holder,,http://dbpedia.org/resource/Office,officer,40000
+6,Mean Of Transportation,,http://dbpedia.org/resource/Transport,transport,40000
+7,Building,,http://dbpedia.org/resource/Building,building,40000
+8,Natural Place,,http://dbpedia.org/resource/Nature,nature,40000
+9,Village,,http://dbpedia.org/resource/Village,village,40000
+10,Animal,,http://dbpedia.org/resource/Animal,animal,40000
+11,Plant,,http://dbpedia.org/resource/Plant,plant,40000
+12,Album,,http://dbpedia.org/resource/Album,album,40000
+13,Film,,http://dbpedia.org/resource/Film,film,40000
+14,Written Work,,http://dbpedia.org/resource/Writing,writing,40000

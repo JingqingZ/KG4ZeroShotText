@@ -126,38 +126,38 @@ else:
 
 ##################################
 
-wiki_dir = "../data/wiki/"
+# wiki_dir = "../data/wiki/"
 
-wiki_full_data_path = wiki_dir + "simple_wiki_type.csv"
+# wiki_full_data_path = wiki_dir + "simple_wiki_type.csv"
 
-wiki_train_data_path = wiki_dir + "train-wiki.csv"
-wiki_train_processed_path = wiki_dir + "processed_train_text.pkl"
+# wiki_train_data_path = wiki_dir + "train-wiki.csv"
+# wiki_train_processed_path = wiki_dir + "processed_train_text.pkl"
 
-wiki_test_data_path = wiki_dir + "test-wiki.csv"
-wiki_test_processed_path = wiki_dir + "processed_test_text.pkl"
+# wiki_test_data_path = wiki_dir + "test-wiki.csv"
+# wiki_test_processed_path = wiki_dir + "processed_test_text.pkl"
 
-wiki_vocab_path = wiki_dir + "vocab.txt"
+# wiki_vocab_path = wiki_dir + "vocab.txt"
 
 
-wiki_train_state_npz_path = wiki_dir + "train_wiki_state.npz"
-wiki_test_state_npz_path = wiki_dir + "test_wiki_state.npz"
+# wiki_train_state_npz_path = wiki_dir + "train_wiki_state.npz"
+# wiki_test_state_npz_path = wiki_dir + "test_wiki_state.npz"
 
 ##################################
 
-arxiv_dir = "../data/arxiv/"
+# arxiv_dir = "../data/arxiv/"
 
-arxiv_full_data_path = arxiv_dir + "arxiv-clean-formatted.csv"
+# arxiv_full_data_path = arxiv_dir + "arxiv-clean-formatted.csv"
 
-arxiv_train_data_path = arxiv_dir + "train-arxiv.csv"
-arxiv_train_processed_path = arxiv_dir + "processed_train_text.pkl"
+# arxiv_train_data_path = arxiv_dir + "train-arxiv.csv"
+# arxiv_train_processed_path = arxiv_dir + "processed_train_text.pkl"
 
-arxiv_test_data_path = arxiv_dir + "test-arxiv.csv"
-arxiv_test_processed_path = arxiv_dir + "processed_test_text.pkl"
+# arxiv_test_data_path = arxiv_dir + "test-arxiv.csv"
+# arxiv_test_processed_path = arxiv_dir + "processed_test_text.pkl"
 
-arxiv_vocab_path = arxiv_dir + "vocab.txt"
+# arxiv_vocab_path = arxiv_dir + "vocab.txt"
 
-arxiv_train_state_npz_path = arxiv_dir + "train_arxiv_state.npz"
-arxiv_test_state_npz_path = arxiv_dir + "test_arxiv_state.npz"
+# arxiv_train_state_npz_path = arxiv_dir + "train_arxiv_state.npz"
+# arxiv_test_state_npz_path = arxiv_dir + "test_arxiv_state.npz"
 
 ##################################
 
@@ -199,70 +199,70 @@ zhang15_dbpedia_word_embed_matrix_path = zhang15_dbpedia_dir + "word_embed_matri
 
 ##################################
 
-zhang15_yahoo_dir = zhang15_dir + "yahoo_answers_csv/"
+# zhang15_yahoo_dir = zhang15_dir + "yahoo_answers_csv/"
 
-zhang15_yahoo_full_data_path = zhang15_yahoo_dir + "full.csv"
+# zhang15_yahoo_full_data_path = zhang15_yahoo_dir + "full.csv"
 
-zhang15_yahoo_train_path = zhang15_yahoo_dir + "train.csv"
-zhang15_yahoo_train_processed_path = zhang15_yahoo_dir + "processed_train_text.pkl"
+# zhang15_yahoo_train_path = zhang15_yahoo_dir + "train.csv"
+# zhang15_yahoo_train_processed_path = zhang15_yahoo_dir + "processed_train_text.pkl"
 
-zhang15_yahoo_test_path = zhang15_yahoo_dir + "test.csv"
-zhang15_yahoo_test_processed_path = zhang15_yahoo_dir + "processed_test_text.pkl"
+# zhang15_yahoo_test_path = zhang15_yahoo_dir + "test.csv"
+# zhang15_yahoo_test_processed_path = zhang15_yahoo_dir + "processed_test_text.pkl"
 
-zhang15_yahoo_vocab_path = zhang15_yahoo_dir + "vocab.txt"
+# zhang15_yahoo_vocab_path = zhang15_yahoo_dir + "vocab.txt"
 
-zhang15_yahoo_train_state_npz_path = zhang15_yahoo_dir + "train_zhang15_yahoo_state.npz"
-zhang15_yahoo_test_state_npz_path = zhang15_yahoo_dir + "test_zhang15_yahoo_state.npz"
+# zhang15_yahoo_train_state_npz_path = zhang15_yahoo_dir + "train_zhang15_yahoo_state.npz"
+# zhang15_yahoo_test_state_npz_path = zhang15_yahoo_dir + "test_zhang15_yahoo_state.npz"
 
 
 ##################################
 
-chen14_dir = "../data/chen14/clean/"
+# chen14_dir = "../data/chen14/clean/"
 
-chen14_class_label_path = chen14_dir + "classLabelsChen14.csv"
+# chen14_class_label_path = chen14_dir + "classLabelsChen14.csv"
 
-chen14_full_data_path = chen14_dir + "full.csv"
+# chen14_full_data_path = chen14_dir + "full.csv"
 
-chen14_train_path = chen14_dir + "train.csv"
-chen14_train_processed_path = chen14_dir + "processed_train_text.pkl"
+# chen14_train_path = chen14_dir + "train.csv"
+# chen14_train_processed_path = chen14_dir + "processed_train_text.pkl"
 
-chen14_test_path = chen14_dir + "test.csv"
-chen14_test_processed_path = chen14_dir + "processed_test_text.pkl"
+# chen14_test_path = chen14_dir + "test.csv"
+# chen14_test_processed_path = chen14_dir + "processed_test_text.pkl"
 
-chen14_vocab_path = chen14_dir + "vocab.txt"
+# chen14_vocab_path = chen14_dir + "vocab.txt"
 
 # chen14_kg_vector_dir = chen14_dir + "KG_VECTOR_3/"
 # chen14_kg_vector_prefix = "KG_VECTORS_3_"
-chen14_kg_vector_dir = chen14_dir + "KG_VECTOR_3_Lem/"
-chen14_kg_vector_prefix = "lemmatised_KG_VECTORS_3_"
+# chen14_kg_vector_dir = chen14_dir + "KG_VECTOR_3_Lem/"
+# chen14_kg_vector_prefix = "lemmatised_KG_VECTORS_3_"
 
-chen14_word_embed_matrix_path = chen14_dir + "word_embed_matrix.npz"
+# chen14_word_embed_matrix_path = chen14_dir + "word_embed_matrix.npz"
 
 ##################################
 
-chen14_elec_dir = "../data/chen14/clean_elec/"
+# chen14_elec_dir = "../data/chen14/clean_elec/"
 
-chen14_elec_class_label_path = chen14_elec_dir + "classLabelsChen14Elec.csv"
-chen14_elec_class_random_group_path = chen14_elec_dir + "chen14_elec_random_group_%s.txt" % unseen_rate
+# chen14_elec_class_label_path = chen14_elec_dir + "classLabelsChen14Elec.csv"
+# chen14_elec_class_random_group_path = chen14_elec_dir + "chen14_elec_random_group_%s.txt" % unseen_rate
 
-chen14_elec_full_data_path = chen14_elec_dir + "full.csv"
+# chen14_elec_full_data_path = chen14_elec_dir + "full.csv"
 
-chen14_elec_train_path = chen14_elec_dir + "train.csv"
-chen14_elec_train_processed_path = chen14_elec_dir + "processed_train_text.pkl"
+# chen14_elec_train_path = chen14_elec_dir + "train.csv"
+# chen14_elec_train_processed_path = chen14_elec_dir + "processed_train_text.pkl"
 
-chen14_elec_test_path = chen14_elec_dir + "test.csv"
-chen14_elec_test_processed_path = chen14_elec_dir + "processed_test_text.pkl"
+# chen14_elec_test_path = chen14_elec_dir + "test.csv"
+# chen14_elec_test_processed_path = chen14_elec_dir + "processed_test_text.pkl"
 
-chen14_elec_vocab_path = chen14_elec_dir + "vocab.txt"
+# chen14_elec_vocab_path = chen14_elec_dir + "vocab.txt"
 
 # chen14_kg_vector_dir = chen14_dir + "KG_VECTOR_3/"
 # chen14_kg_vector_prefix = "KG_VECTORS_3_"
 # chen14_elec_kg_vector_dir = chen14_elec_dir + "KG_VECTOR_3_Lem/"
 # chen14_elec_kg_vector_prefix = "lemmatised_KG_VECTORS_3_elec_"
-chen14_elec_kg_vector_dir = chen14_elec_dir + "KG_VECTOR_CLUSTER_3GROUP/"
-chen14_elec_kg_vector_prefix = "VECTORS_CLUSTER_3_"
+# chen14_elec_kg_vector_dir = chen14_elec_dir + "KG_VECTOR_CLUSTER_3GROUP/"
+# chen14_elec_kg_vector_prefix = "VECTORS_CLUSTER_3_"
 
-chen14_elec_word_embed_matrix_path = chen14_elec_dir + "word_embed_matrix.npz"
+# chen14_elec_word_embed_matrix_path = chen14_elec_dir + "word_embed_matrix.npz"
 
 
 ##################################
