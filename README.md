@@ -46,8 +46,13 @@ In order to run the code, please check the following issues.
     - Numpy 1.14.5
     - Pandas 0.21.0
     - NLTK 3.2.5
-- [x] Original dataset
+- [x] Download original dataset
+    - [GloVe.6B.200d](https://nlp.stanford.edu/projects/glove/)
+    - [ConceptNet v5.6.0](https://github.com/commonsense/conceptnet5/wiki/Downloads)
+    - [DBpedia ontology dataset](https://github.com/zhangxiangxiao/Crepe)
+    - [20 Newsgroups original 19997 docs](http://qwone.com/~jason/20Newsgroups/)
 - [x] Intermediate files (after preprocessing)
+- [x] Check [config.py](src_reject/config.py) and update the locations of data files accordingly.
 
 [TensorLayer]: https://github.com/tensorlayer/tensorlayer
 
@@ -59,8 +64,8 @@ python3 train_seen.py \
         --data dbpedia \
         --unseen 0.5 \
         --model vw \
-        --ns 0 --ni 0 --sepoch 1 \
-        --rgidx 1 --train 1
+        --sepoch 1 \
+        --train 1
 ```
 
 The arguments of the commands represent
@@ -68,11 +73,9 @@ The arguments of the commands represent
 * `unseen`: Rate of unseen classes, either `0.25` or `0.5`.
 * `model`: The model specified to train the model. This argument can only be
     * `vw`: the inputs are embedding of words (from text)
-* `ns`: Integer, the ratio of positive and negative samples, the higher the more negative samples
-* `ni`: Integer, the speed of increasing negative samples during training per epoch
 * `sepoch`: Repeat training of each epoch for several times. The ratio of positive/negative samples and learning rate will keep consistent in one epoch no mather how many times the epoch is repeated.
-* `rgidx`: Random group starting index: e.g. if 5, the training will start from the 5th random group, by default `1`. This argument is used when the program is accidentally interrupted.
 * `train`: In Phase 1, this argument does not affect the program. The program will run training and testing together.
+* `rgidx`: Optional, Random group starting index: e.g. if 5, the training will start from the 5th random group, by default `1`. This argument is used when the program is accidentally interrupted.
 * `gpu`: Optional, GPU occupation percentage, by default `1.0`, which means full occupation of available GPUs.
 * `baseepoch`: Optional, you may want to specify which epoch to test.
 
@@ -97,11 +100,11 @@ The arguments of the commands represent
     * `vwvkg`: the inputs contain the embedding of words (from text) and the relationship vectors.
     * `vwvc`: the inputs contain the embedding of words and class labels.
     * `vwvcvkg`: all three kinds of inputs mentioned above.
-* `ns`: Integer, the ratio of positive and negative samples, the higher the more negative samples
-* `ni`: Integer, the speed of increasing negative samples during training per epoch
-* `sepoch`: Repeat training of each epoch for several times. The ratio of positive/negative samples and learning rate will keep consistent in one epoch no mather how many times the epoch is repeated.
-* `rgidx`: Random group starting index: e.g. if 5, the training will start from the 5th random group, by default `1`. This argument is used when the program is accidentally interrupted.
 * `train`: 1 for training, 0 for testing.
+* `sepoch`: Repeat training of each epoch for several times. The ratio of positive/negative samples and learning rate will keep consistent in one epoch no mather how many times the epoch is repeated.
+* `ns`: Optional, Integer, the ratio of positive and negative samples, the higher the more negative samples, by default `2`. 
+* `ni`: Optional, Integer, the speed of increasing negative samples during training per epoch, by default `2`.
+* `rgidx`: Optional, Random group starting index: e.g. if 5, the training will start from the 5th random group, by default `1`. This argument is used when the program is accidentally interrupted.
 * `gpu`: Optional, GPU occupation percentage, by default `1.0`, which means full occupation of available GPUs.
 * `baseepoch`: Optional, you may want to specify which epoch to test.
 
