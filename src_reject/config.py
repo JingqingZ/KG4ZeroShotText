@@ -283,11 +283,13 @@ news20_train_processed_path = news20_dir + "processed_train_text.pkl"
 news20_test_path = news20_dir + "test.csv"
 news20_test_processed_path = news20_dir + "processed_test_text.pkl"
 
+# TODO by Peter, how to get augmented data
 news20_train_aug_path = news20_dir + "train_augmented.csv"
 news20_train_aug_processed_path = news20_dir + "processed_train_aug_text.pkl"
 
 news20_vocab_path = news20_dir + "vocab.txt"
 
+# TODO by Peter, how to get kg vectors
 # news20_kg_vector_dir = news20_dir + "KG_VECTOR_3_Lem/"
 # news20_kg_vector_prefix = "lemmatised_KG_VECTORS_3_"
 news20_kg_vector_dir = news20_dir + "KG_VECTOR_CLUSTER_3GROUP/"
@@ -295,5 +297,5 @@ news20_kg_vector_prefix = "VECTORS_CLUSTER_3_"
 
 news20_word_embed_matrix_path = news20_dir + "word_embed_matrix.npz"
 
-news20_class_cluster_path = news20_dir + "class_clusters_20news.pickle"
+# news20_class_cluster_path = news20_dir + "class_clusters_20news.pickle"
 
