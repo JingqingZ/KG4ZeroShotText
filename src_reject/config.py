@@ -112,6 +112,7 @@ word_embed_file_path = "../data/glove/glove.6B.200d.txt"
 
 conceptnet_path = "../wordEmbeddings/conceptnet-assertions-en-5.6.0.csv"
 
+# TODO by Peter: how to get these rejector files
 if dataset == "dbpedia" and unseen_rate == 0.25:
     rejector_file = "./dbpedia_unseen0.25_augmented12000.pickle"
 elif dataset == "dbpedia" and unseen_rate == 0.5:
@@ -170,6 +171,7 @@ zhang15_dbpedia_full_data_path = zhang15_dbpedia_dir + "full.csv"
 zhang15_dbpedia_train_path = zhang15_dbpedia_dir + "train.csv"
 zhang15_dbpedia_train_processed_path = zhang15_dbpedia_dir + "processed_train_text.pkl"
 
+# TODO by Peter: how to get augmented data
 zhang15_dbpedia_train_aug_path = zhang15_dbpedia_dir + "train_augmented_aggregated.csv"
 zhang15_dbpedia_train_aug_processed_path = zhang15_dbpedia_dir + "processed_train_aug_text.pkl"
 
@@ -188,9 +190,9 @@ zhang15_dbpedia_class_random_group_path = zhang15_dbpedia_dir + "dbpedia_random_
 # zhang15_dbpedia_kg_vector_train_processed_path = zhang15_dbpedia_dir + "kg_vector_train_processed.pkl"
 # zhang15_dbpedia_kg_vector_test_processed_path = zhang15_dbpedia_dir + "kg_vector_test_processed.pkl"
 
-#TODO change filename of kg_vector
 # zhang15_dbpedia_kg_vector_dir = zhang15_dbpedia_dir + "KG_VECTOR_3/"
 # zhang15_dbpedia_kg_vector_prefix = "KG_VECTORS_3_"
+# TODO by Peter, how to get KG_Vector files
 zhang15_dbpedia_kg_vector_dir = zhang15_dbpedia_dir + "KG_VECTOR_CLUSTER_3GROUP/"
 # zhang15_dbpedia_kg_vector_dir = zhang15_dbpedia_dir + "KG_VECTOR_CLUSTER_ALLGROUP/"
 zhang15_dbpedia_kg_vector_prefix = "VECTORS_CLUSTER_3_"

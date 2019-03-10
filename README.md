@@ -51,19 +51,26 @@ In order to run the code, please check the following issues.
     - [ConceptNet v5.6.0](https://github.com/commonsense/conceptnet5/wiki/Downloads)
     - [DBpedia ontology dataset](https://github.com/zhangxiangxiao/Crepe)
     - [20 Newsgroups original 19997 docs](http://qwone.com/~jason/20Newsgroups/)
-- [x] Check [config.py](src_reject/config.py) and update the locations of data files accordingly. The [config.py](src_reject/config.py) also defines the locations of intermediate files.
+- [x] Check [config.py] and update the locations of data files accordingly. The [config.py] also defines the locations of intermediate files.
 - [x] The intermediate files already provided in this repo
     - [classLabelsDBpedia.csv](data/zhang15/dbpedia_csv/classLabelsDBpedia.csv): A summary of classes in DBpedia and linked nodes in ConceptNet.
     - [classLabels20news.csv](data/20-newsgroups/clean/classLabels20news.csv): A summary of classes in 20news and linked nodes in ConceptNet.
-    - Selection of seen/unseen classes in DBpedia with unseen rate [0.25](data/zhang15/dbpedia_csv/dbpedia_random_group_0.25.txt) and [0.5](data/zhang15/dbpedia_csv/dbpedia_random_group_0.5.txt).
-    - Selection of seen/unseen classes in 20news with unseen rate [0.25](data/20-newsgroups/clean/20news_random_group_0.25.txt) and [0.5](data/20-newsgroups/clean/20news_random_group_0.5.txt).
-    - Note: seen/unseen classes are randomly selected for 10 times. You may randomly generate another 10 groups of seen/unseen classes.
+    - Random selection of seen/unseen classes in DBpedia with unseen rate [0.25](data/zhang15/dbpedia_csv/dbpedia_random_group_0.25.txt) and [0.5](data/zhang15/dbpedia_csv/dbpedia_random_group_0.5.txt).
+    - Random selection of seen/unseen classes in 20news with unseen rate [0.25](data/20-newsgroups/clean/20news_random_group_0.25.txt) and [0.5](data/20-newsgroups/clean/20news_random_group_0.5.txt).
+    - Note: seen/unseen classes were randomly selected for 10 times. You may randomly generate another 10 groups of seen/unseen classes.
 - [x] The intermediate files need to be manually generated
-    - run `combine_zhang15_dbpedia_train_test()` in [playground.py](src_reject/playground.py): the generated `full.csv` is used to create vocabulary for DBpedia.
-    - run `combine_20news_train_test()` in [playground.py](src_reject/playground.py): the generated `full.csv` is used to create vocabulary for 20news.
+    - Appropriate preprocessing is recommended. For example, the vocabulary is limited by 20K most frequent words and all numbers are excluded.
+    - Run `combine_zhang15_dbpedia_train_test()` in [playground.py]: 
+        - The generated `full.csv` is used to create vocabulary for DBpedia later.
+    - Run `doing_sth_on_20_news()` in [playground.py]: 
+        - This function automatically collects 20news data and randomly split the data into training set `train.csv` (70%) and testing set `test.csv` (30%). 
+        - Besides, `full.csv` is also generated and is used to create vocabulary for 20news later. 
+        - Note that the variable `home_dir` in this function should be the location of the home directory of uncompressed 20news data, which includes a collection of folders named by class labels.
 - [x] Other intermediate files should be generated automatically when they are needed.
 
 [TensorLayer]: https://github.com/tensorlayer/tensorlayer
+[config.py]: src_reject/config.py
+[playground.py]: src_reject/playground.py
 
 ### How to train / test Phase 1
 
