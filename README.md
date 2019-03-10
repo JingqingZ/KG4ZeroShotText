@@ -63,7 +63,7 @@ In order to run the code, please check the following issues.
     - Run `combine_zhang15_dbpedia_train_test()` in [playground.py]: 
         - The generated `full.csv` is used to create vocabulary for DBpedia later.
     - Run `doing_sth_on_20_news()` in [playground.py]: 
-        - This function automatically collects 20news data and randomly split the data into training set `train.csv` (70%) and testing set `test.csv` (30%). 
+        - This function automatically collects 20news data and randomly splits the data into training set `train.csv` (70%) and testing set `test.csv` (30%). 
         - Besides, `full.csv` is also generated and is used to create vocabulary for 20news later. 
         - Note that the variable `home_dir` in this function should be the location of the home directory of uncompressed 20news data, which includes a collection of folders named by class labels.
 - [x] Other intermediate files should be generated automatically when they are needed.
@@ -84,10 +84,10 @@ python3 train_seen.py \
         --train 1
 ```
 
-The arguments of the commands represent
+The arguments of the command represent
 * `data`: Dataset, either `dbpedia` or `20news`.
 * `unseen`: Rate of unseen classes, either `0.25` or `0.5`.
-* `model`: The model specified to train the model. This argument can only be
+* `model`: The model to be trained. This argument can only be
     * `vw`: the inputs are embedding of words (from text)
 * `sepoch`: Repeat training of each epoch for several times. The ratio of positive/negative samples and learning rate will keep consistent in one epoch no matter how many times the epoch is repeated.
 * `train`: In Phase 1, this argument does not affect the program. The program will run training and testing together.
@@ -107,17 +107,17 @@ python3 train_unseen.py \
         --rgidx 1 --train 1
 ```
 
-The arguments of the commands represent
+The arguments of the command represent
 * `data`: Dataset, either `dbpedia` or `20news`.
 * `unseen`: Rate of unseen classes, either `0.25` or `0.5`.
-* `model`: The model specified to train the model. This argument can be (correspond with Table 6 in the paper)
+* `model`: The model to be trained. This argument can be (correspond with Table 6 in the paper)
     * `kgonly`: the inputs are the relationship vectors which are extracted from knowledge graph (KG).
     * `vcvkg`: the inputs contain the embedding of class labels and the relationship vectors.
     * `vwvkg`: the inputs contain the embedding of words (from text) and the relationship vectors.
     * `vwvc`: the inputs contain the embedding of words and class labels.
     * `vwvcvkg`: all three kinds of inputs mentioned above.
 * `train`: 1 for training, 0 for testing.
-* `sepoch`: Repeat training of each epoch for several times. The ratio of positive/negative samples and learning rate will keep consistent in one epoch no mather how many times the epoch is repeated.
+* `sepoch`: Repeat training of each epoch for several times. The ratio of positive/negative samples and learning rate will keep consistent in one epoch no matter how many times the epoch is repeated.
 * `ns`: Optional, Integer, the ratio of positive and negative samples, the higher the more negative samples, by default `2`. 
 * `ni`: Optional, Integer, the speed of increasing negative samples during training per epoch, by default `2`.
 * `rgidx`: Optional, Random group starting index: e.g. if 5, the training will start from the 5th random group, by default `1`. This argument is used when the program is accidentally interrupted.
