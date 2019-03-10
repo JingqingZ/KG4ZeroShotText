@@ -51,8 +51,17 @@ In order to run the code, please check the following issues.
     - [ConceptNet v5.6.0](https://github.com/commonsense/conceptnet5/wiki/Downloads)
     - [DBpedia ontology dataset](https://github.com/zhangxiangxiao/Crepe)
     - [20 Newsgroups original 19997 docs](http://qwone.com/~jason/20Newsgroups/)
-- [x] Intermediate files (after preprocessing)
-- [x] Check [config.py](src_reject/config.py) and update the locations of data files accordingly. Note that not all 
+- [x] Check [config.py](src_reject/config.py) and update the locations of data files accordingly. The [config.py](src_reject/config.py) also defines the locations of intermediate files.
+- [x] Intermediate files already provided in this repo
+    - [classLabelsDBpedia.csv](data/zhang15/dbpedia_csv/classLabelsDBpedia.csv): A summary of classes in DBpedia and linked nodes in ConceptNet.
+    - [classLabels20news.csv](data/20-newsgroups/clean/classLabels20news.csv): A summary of classes in 20news and linked nodes in ConceptNet.
+    - Selection of seen/unseen classes in DBpedia with unseen rate [0.25](data/zhang15/dbpedia_csv/dbpedia_random_group_0.25.txt) and [0.5](data/zhang15/dbpedia_csv/dbpedia_random_group_0.5.txt).
+    - Selection of seen/unseen classes in 20news with unseen rate [0.25](data/20-newsgroups/clean/20news_random_group_0.25.txt) and [0.5](data/20-newsgroups/clean/20news_random_group_0.5.txt).
+    - Note: seen/unseen classes are randomly selected for 10 times. You may randomly generate another 10 groups of seen/unseen classes.
+- [x] Generate some intermediate files
+    - run `combine_zhang15_dbpedia_train_test()` in [playground.py](src_reject/playground.py): the generated `full.csv` is used to create vocabulary for DBpedia.
+    - run `combine_20news_train_test()` in [playground.py](src_reject/playground.py): the generated `full.csv` is used to create vocabulary for 20news.
+- [x] Other intermediate files should be generated automatically when they are needed.
 
 [TensorLayer]: https://github.com/tensorlayer/tensorlayer
 
