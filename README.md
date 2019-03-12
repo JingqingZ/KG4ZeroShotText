@@ -3,6 +3,8 @@
 
 ##### Jingqing and Piyawat contributed equally to this project.
 
+> This repo is still under construction. More information (including the paper) will be released by 1st April, 2019.
+
 Paper link: Pending
 
 ## Contents
