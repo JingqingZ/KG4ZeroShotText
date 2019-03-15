@@ -1118,8 +1118,8 @@ def error_overall_with_rejector():
             #                % (i + 1, "-".join(str(_) for _ in rgroup[1]), 80, 5, 9)
             unseen_filename = "../results/unseen_full_zhang15_dbpedia_kg3_cluster_3group_%s_random%d_unseen%s_max%d_cnn_negative%dincrease%d_randomtext_aug%d/logs/test_full_%d.npz" \
                        % (config.model, i + 1, "-".join(str(_) for _ in rgroup[1]), 80, config.negative_sample, config.negative_increase, config.augmentation, config.global_test_base_epoch)
-            seen_filename = "../results/seen_full_zhang15_dbpedia_vwonly_random%d_unseen%s_max%d_cnn/logs/test_%d.npz" \
-                           % (i + 1, "-".join(str(_) for _ in rgroup[1]), 50, 9)
+            seen_filename = "../results/seen_full_zhang15_dbpedia_vwonly_random%d_unseen%s_max%d_cnn/logs/test_full_%d.npz" \
+                           % (i + 1, "-".join(str(_) for _ in rgroup[1]), 50, 2)
         elif config.dataset == "dbpedia" and config.unseen_rate == 0.5:
             unseen_filename = "../results/unseen_full_zhang15_dbpedia_kg3_cluster_3group_%s_random%d_unseen%s_max%d_cnn_negative%dincrease%d_randomtext_aug%d/logs/test_full_%d.npz" \
                        % (config.model, i + 1, "-".join(str(_) for _ in rgroup[1]), 80, config.negative_sample, config.negative_increase, config.augmentation, config.global_test_base_epoch)

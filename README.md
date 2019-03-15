@@ -76,6 +76,10 @@ In order to run the code, please check the following issues.
 
 ### How to train / test Phase 1
 
+Pending
+
+### How to train / test the traditional classifier in Phase 2
+
 An example:
 ```bash
 python3 train_seen.py \
@@ -97,7 +101,7 @@ The arguments of the command represent
 * `gpu`: Optional, GPU occupation percentage, by default `1.0`, which means full occupation of available GPUs.
 * `baseepoch`: Optional, you may want to specify which epoch to test.
 
-### How to train / test Phase 2
+### How to train / test the zero-shot classifier in Phase 2
 
 An example:
 ```bash
