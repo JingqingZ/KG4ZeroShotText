@@ -1,21 +1,21 @@
-ClassCode,ClassLabel,ConceptNet,Count
-1,alt.atheism,atheism,799
-2,comp.graphics,graphics,973
-3,comp.os.ms-windows.misc,os,985
-4,comp.sys.ibm.pc.hardware,ibm,982
-5,comp.sys.mac.hardware,mac,961
-6,comp.windows.x,windows,980
-7,misc.forsale,sale,972
-8,rec.autos,auto,990
-9,rec.motorcycles,motorcycle,994
-10,rec.sport.baseball,baseball,994
-11,rec.sport.hockey,hockey,999
-12,sci.crypt,crypt,991
-13,sci.electronics,electronics,981
-14,sci.med,medical,990
-15,sci.space,space,987
-16,soc.religion.christian,christian,997
-17,talk.politics.guns,gun,910
-18,talk.politics.mideast,mideast,940
-19,talk.politics.misc,politics,775
-20,talk.religion.misc,religion,628
+ClassCode,ClassLabel,ConceptNet,Count,ClassDescription,Hierarchy
+1,alt.atheism,atheism,799,the belief or theory that God does not exist,alt
+2,comp.graphics,graphics,973,pictures produced by computers,computer
+3,comp.os.ms-windows.misc,operating system,985,the software that tells the parts of a computer how to work together and what to do,computer;os;ms;windows
+4,comp.sys.ibm.pc.hardware,ibm,982,ibm personal computer equipments,computer;system;pc;hardware
+5,comp.sys.mac.hardware,mac,961,mac computer equipment,computer;system;hardware
+6,comp.windows.x,windows,980,windows x,computer;x;
+7,misc.forsale,sale,972,the process of selling goods or services for money,
+8,rec.autos,auto,990,relating to cars,recreation
+9,rec.motorcycles,motorcycle,994,a road vehicle that has two wheels and an engine and looks like a large heavy bicycle,recreation
+10,rec.sport.baseball,baseball,994,a game played by two teams of nine players who get points by hitting a ball with a bat and then running around four bases,recreation;sport
+11,rec.sport.hockey,hockey,999,a game played on grass by two teams of 11 players who try to score goals by hitting a ball with a curved stick called a hockey stick,recreation;sport
+12,sci.crypt,crypt,991,the use of codes to put information on a website into a form that can only be read by users with permission,science
+13,sci.electronics,electronics,981,using electricity and extremely small electrical parts such as microchips and transistors,science
+14,sci.med,medical,990,relating to medicine and the treatment of injuries and diseases,science
+15,sci.space,space,987,the whole of the universe outside the Earth’s atmosphere,science
+16,soc.religion.christian,christian,997,the religion based on the teachings of Jesus Christ. Its followers worship in a church.,social
+17,talk.politics.guns,gun,910,"a weapon that shoots bullets, for example a pistol or a rifle. You load a gun with ammunition and pull the trigger to use it",talk;politics
+18,talk.politics.mideast,mideast,940,"the region of the world that consists of the countries east of the Mediterranean Sea and west of India. It includes Egypt, Jordan, Israel, Lebanon, Syria, Turkey, Iran, and Iraq.",talk;politics
+19,talk.politics.misc,politics,775,the ideas and activities involved in getting power in a country or over a particular area of the world,talk
+20,talk.religion.misc,religion,628,the belief in the existence of a god or gods,talk

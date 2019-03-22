@@ -1,15 +1,15 @@
-ClassCode,ClassLabel,ClassDescription,DBpediaManual,ConceptNet,Count
-1,Company,,http://dbpedia.org/resource/Company,company,40000
-2,Educational Institution,,http://dbpedia.org/resource/Education,education,40000
-3,Artist,,http://dbpedia.org/resource/Artist,artist,40000
-4,Athlete,,http://dbpedia.org/resource/Athlete,athlete,40000
-5,Office Holder,,http://dbpedia.org/resource/Office,officer,40000
-6,Mean Of Transportation,,http://dbpedia.org/resource/Transport,transport,40000
-7,Building,,http://dbpedia.org/resource/Building,building,40000
-8,Natural Place,,http://dbpedia.org/resource/Nature,nature,40000
-9,Village,,http://dbpedia.org/resource/Village,village,40000
-10,Animal,,http://dbpedia.org/resource/Animal,animal,40000
-11,Plant,,http://dbpedia.org/resource/Plant,plant,40000
-12,Album,,http://dbpedia.org/resource/Album,album,40000
-13,Film,,http://dbpedia.org/resource/Film,film,40000
-14,Written Work,,http://dbpedia.org/resource/Writing,writing,40000
+ClassCode,ClassLabel,ClassDescription,DBpediaManual,ConceptNet,Count,Hierarchy,ClassWord
+1,company,"an organization that provides services, or that makes or sells goods for money",http://dbpedia.org/resource/Company,company,40000,agent;organisation,company
+2,educational institution,an educational institution is a place where people of different ages gain an education.,http://dbpedia.org/resource/Education,educational_institution,40000,agent;organisation,education
+3,artist,"someone who makes paintings, sculptures etc",http://dbpedia.org/resource/Artist,artist,40000,agent;person,artist
+4,athlete,"someone who is good at sports, especially athletics, and takes part in sports competitions",http://dbpedia.org/resource/Athlete,athlete,40000,agent;person,athlete
+5,office holder,someone who has an important official position in an organization or in the government,http://dbpedia.org/resource/Office,office_holder,40000,agent;person,officeholder
+6,mean of transportation,any of the different kinds of transport facilities used to carry people or cargo,http://dbpedia.org/resource/Transport,--None--,40000,,transportation
+7,building,"a structure made of a strong material such as stone or wood that has a roof and walls, for example a house",http://dbpedia.org/resource/Building,building,40000,place,building
+8,natural place,all places occurring naturally in universe.,http://dbpedia.org/resource/Nature,--None--,40000,place,natural
+9,village,a very small town in the countryside,http://dbpedia.org/resource/Village,village,40000,place,village
+10,animal,any living thing that can move independently and that has senses for recognizing and reacting to the environment around it.,http://dbpedia.org/resource/Animal,animal,40000,species,animal
+11,plant,"a living thing that grows in soil, has leaves and roots, and needs water and light from the sun to live",http://dbpedia.org/resource/Plant,plant,40000,species,plant
+12,album,"a collection of several songs or pieces of music recorded as an MP3 file, on a CD etc",http://dbpedia.org/resource/Album,album,40000,work,album
+13,film,a series of moving pictures with sound that you can watch at the cinema or at home,http://dbpedia.org/resource/Film,film,40000,work,film
+14,written work,"any text written to read it (e.g.: books, newspaper, articles)",http://dbpedia.org/resource/Writing,written_work,40000,work,writing
