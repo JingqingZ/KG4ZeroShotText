@@ -109,8 +109,10 @@ pos_dict = {'JJ': 'a', 'JJR': 'a', 'JJS': 'a',
 # kg_vector_data_path = kg_vector_dir + "KG_VECTORS_2.pickle"
 
 word_embed_file_path = "../data/glove/glove.6B.200d.txt"
-
+word_embed_gensim_file_path = '../data/glove/glove.6B.200d.gensim.txt'
 conceptnet_path = "../wordEmbeddings/conceptnet-assertions-en-5.6.0.csv"
+POS_OF_WORD_path = "../data/POS_OF_WORD.pickle"
+WORD_TOPIC_TRANSLATION_path = "../data/WORD_TOPIC_TRANSLATION.pickle"
 
 # TODO by Peter: how to get these rejector files
 if dataset == "dbpedia" and unseen_rate == 0.25:
