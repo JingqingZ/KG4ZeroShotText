@@ -18,15 +18,24 @@ from nltk.stem import WordNetLemmatizer
 from nltk.corpus import wordnet as wn
 import language_check
 
+maxInt = sys.maxsize
+decrement = True
+
+while decrement:
+    decrement = False
+    try:
+        csv.field_size_limit(maxInt)
+    except OverflowError:
+        maxInt = int(maxInt/10)
+        decrement = True
 
 lemmatizer = WordNetLemmatizer()
 stop_words = set(stopwords.words('english'))
 
 
-glove_file = datapath(config.word_embed_file_path)
-tmp_file = get_tmpfile(config.word_embed_gensim_file_path)
-_ = glove2word2vec(glove_file, tmp_file)
-glove_model = KeyedVectors.load_word2vec_format(tmp_file)
+if not os.path.isfile(config.word_embed_gensim_file_path):
+    _ = glove2word2vec(config.word_embed_file_path, config.word_embed_gensim_file_path)
+glove_model = KeyedVectors.load_word2vec_format(config.word_embed_gensim_file_path)
 
 tool = language_check.LanguageTool('en-US')
 
@@ -95,7 +104,7 @@ def topic_transfer(text, from_class, to_class):
     
     return ans_sentence
 
-def augment_train(class_label_path, train_augmented_path, train_path):
+def augment_train(class_label_path, train_augmented_path, train_path, nott):
     global POS_OF_WORD, WORD_TOPIC_TRANSLATION
     if os.path.isfile(config.POS_OF_WORD_path):
         POS_OF_WORD = pickle.load(open(config.POS_OF_WORD_path, "rb"))
@@ -106,7 +115,7 @@ def augment_train(class_label_path, train_augmented_path, train_path):
     class_dict = dataloader.load_class_dict(
         class_file=class_label_path,
         class_code_column="ClassCode",
-        class_name_column="ConceptNet"
+        class_name_column="ClassWord"
     )
     
     fieldnames = ['No.','from_class', 'to_class', 'text']
@@ -119,18 +128,17 @@ def augment_train(class_label_path, train_augmented_path, train_path):
         reader = csv.DictReader(csvfile)
         rows = list(reader)
         random.shuffle(rows)
+        if nott is not None: # no. of texts to be translated
+            rows = rows[:min(nott, len(rows))]
         count = 0
         with progressbar.ProgressBar(max_value=len(rows)) as bar:
             for idx, row in enumerate(rows):
                 text = row['text']
                 class_id = int(row['class'])
                 class_name = class_dict[class_id]
-                # print('---Original----', class_name)
-                # print(text)
+
                 for cidx in class_dict:
                     if cidx != int(row['class']):
-                        # print('---------------', class_dict[idx])
-                        # print(topic_transfer(text, from_class = class_name, to_class = class_dict[idx]))
                         try:
                             writer.writerow({'No.':count, 'from_class': class_id, 'to_class': cidx, 'text':topic_transfer(text, from_class = class_name, to_class = class_dict[cidx])})
                             count += 1
@@ -143,4 +151,11 @@ def augment_train(class_label_path, train_augmented_path, train_path):
     csvwritefile.close()
 
 if __name__ == "__main__":
-    print(sys.argv)
+    print(config.dataset, config.args.nott)
+    if config.dataset == "dbpedia":
+        augment_train(config.zhang15_dbpedia_class_label_path, config.zhang15_dbpedia_train_augmented_aggregated_path, config.zhang15_dbpedia_train_path, config.args.nott)
+    elif config.dataset == "20news":
+        augment_train(config.news20_class_label_path, config.news20_train_augmented_aggregated_path, config.news20_train_path, config.args.nott)
+    else:
+        raise Exception("config.dataset %s not found" % config.dataset)
+    pass

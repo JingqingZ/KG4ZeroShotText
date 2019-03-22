@@ -2,19 +2,20 @@
 import argparse
 
 parser = argparse.ArgumentParser(description='configurations')
-parser.add_argument("--data",  type=str, required=True, help="dataset: dbpedia or 20news")
-parser.add_argument("--unseen", type=float, required=True, help="unseen rate: 0.25 0.5 0.75")
-# parser.add_argument("--aug", type=int, required=True, help="augmentation: 0 4000 8000 12000 16000 20000")
-parser.add_argument("--model", type=str, required=True, help="model: vwvcvkg vwvc vwvkg vcvkg kgonly cnnfc rnnfc")
+parser.add_argument("--data",  type=str, required=False, help="dataset: dbpedia or 20news")
+parser.add_argument("--unseen", type=float, required=False, help="unseen rate: 0.25 0.5 0.75")
+# parser.add_argument("--aug", type=int, required=False, help="augmentation: 0 4000 8000 12000 16000 20000")
+parser.add_argument("--model", type=str, required=False, help="model: vwvcvkg vwvc vwvkg vcvkg kgonly cnnfc rnnfc")
 parser.add_argument("--ns", type=int, default=2, required=False, help="negative samples: integer, the ratio of positive and negative samples, the higher the more negative samples")
 parser.add_argument("--ni", type=int, default=2, required=False, help="negative increase: integer, the speed of increasing negative samples during training per epoch")
-parser.add_argument("--sepoch", type=int, required=True, help="small epoch: integer, repeat training of each epoch for several times so that the ratio of posi/negative, learning rate both keep the same")
+parser.add_argument("--sepoch", type=int, required=False, help="small epoch: integer, repeat training of each epoch for several times so that the ratio of posi/negative, learning rate both keep the same")
 parser.add_argument("--rgidx", type=int, default=1, required=False, help="random group starting index: e.g. if 5, the training will start from the 5th random group, by default 1")
-parser.add_argument("--train", type=int, required=True, help="train or not")
+parser.add_argument("--train", type=int, required=False, help="train or not")
 parser.add_argument("--gpu", type=float, default=1.0, required=False, help="gpu occupation percentage")
 parser.add_argument("--baseepoch", type=int, required=False, help="base epoch for testing")
 parser.add_argument("--fulltest", type=int, required=False, help="full test or not")
 parser.add_argument("--threshold", type=float, required=False, help="threshold for seen")
+parser.add_argument("--nott", type=int, required=False, help="no. of original texts to be translated")
 args = parser.parse_args()
 print(args)
 
@@ -173,9 +174,9 @@ zhang15_dbpedia_full_data_path = zhang15_dbpedia_dir + "full.csv"
 zhang15_dbpedia_train_path = zhang15_dbpedia_dir + "train.csv"
 zhang15_dbpedia_train_processed_path = zhang15_dbpedia_dir + "processed_train_text.pkl"
 
-# TODO by Peter: how to get augmented data
-zhang15_dbpedia_train_aug_path = zhang15_dbpedia_dir + "train_augmented_aggregated.csv"
-zhang15_dbpedia_train_aug_processed_path = zhang15_dbpedia_dir + "processed_train_aug_text.pkl"
+zhang15_dbpedia_train_augmented_path = zhang15_dbpedia_dir + "train_augmented.csv"
+zhang15_dbpedia_train_augmented_aggregated_path = zhang15_dbpedia_dir + "train_augmented_aggregated.csv"
+zhang15_dbpedia_train_augmented_processed_path = zhang15_dbpedia_dir + "processed_train_augmented_text.pkl"
 
 zhang15_dbpedia_test_path = zhang15_dbpedia_dir + "test.csv"
 zhang15_dbpedia_test_processed_path = zhang15_dbpedia_dir + "processed_test_text.pkl"
@@ -285,9 +286,10 @@ news20_train_processed_path = news20_dir + "processed_train_text.pkl"
 news20_test_path = news20_dir + "test.csv"
 news20_test_processed_path = news20_dir + "processed_test_text.pkl"
 
-# TODO by Peter, how to get augmented data
-news20_train_aug_path = news20_dir + "train_augmented.csv"
-news20_train_aug_processed_path = news20_dir + "processed_train_aug_text.pkl"
+news20_train_augmented_path = news20_dir + "train_augmented.csv"
+news20_train_augmented_aggregated_path = news20_dir + "train_augmented_aggregated.csv"
+news20_train_augmented_processed_path = news20_dir + "processed_train_augmented_text.pkl"
+
 
 news20_vocab_path = news20_dir + "vocab.txt"
 
