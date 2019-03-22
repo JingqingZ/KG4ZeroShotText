@@ -115,6 +115,28 @@ python3 train_reject.py \
         --train 1
 ```
 
+- With data augmentation: an example
+```bash
+python3 train_reject_augmented.py \
+        --data dbpedia \
+        --unseen 0.5 \
+        --model vw \
+        --nepoch 3 \
+        --rgidx 1 \
+        --naug 100 \
+        --train 1
+```
+
+The arguments of the command represent
+* `data`: Dataset, either `dbpedia` or `20news`.
+* `unseen`: Rate of unseen classes, either `0.25` or `0.5`.
+* `model`: The model to be trained. This argument can only be
+    * `vw`: the inputs are embedding of words (from text)
+* `nepoch`: The number of epochs for training
+* `train`: In Phase 1, this argument does not affect the program. The program will run training and testing together.
+* `rgidx`: Optional, Random group starting index: e.g. if 5, the training will start from the 5th random group, by default `1`. This argument is used when the program is accidentally interrupted.
+* `naug`: The number of augmented data per unseen class
+
 
 ### How to train / test the traditional classifier in Phase 2
 
@@ -134,7 +156,7 @@ The arguments of the command represent
 * `model`: The model to be trained. This argument can only be
     * `vw`: the inputs are embedding of words (from text)
 * `sepoch`: Repeat training of each epoch for several times. The ratio of positive/negative samples and learning rate will keep consistent in one epoch no matter how many times the epoch is repeated.
-* `train`: In Phase 1, this argument does not affect the program. The program will run training and testing together.
+* `train`: For the traditional classifier, this argument does not affect the program. The program will run training and testing together.
 * `rgidx`: Optional, Random group starting index: e.g. if 5, the training will start from the 5th random group, by default `1`. This argument is used when the program is accidentally interrupted.
 * `gpu`: Optional, GPU occupation percentage, by default `1.0`, which means full occupation of available GPUs.
 * `baseepoch`: Optional, you may want to specify which epoch to test.

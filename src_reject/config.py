@@ -17,6 +17,7 @@ parser.add_argument("--baseepoch", type=int, required=False, help="base epoch fo
 parser.add_argument("--fulltest", type=int, required=False, help="full test or not")
 parser.add_argument("--threshold", type=float, required=False, help="threshold for seen")
 parser.add_argument("--nott", type=int, required=False, help="no. of original texts to be translated")
+parser.add_argument("--naug", type=int, default = 100, required=False, help="no. of augmented data per unseen class")
 args = parser.parse_args()
 print(args)
 
@@ -171,6 +172,7 @@ zhang15_dir = "../data/zhang15/"
 zhang15_dbpedia_dir = zhang15_dir + "dbpedia_csv/"
 
 zhang15_dbpedia_full_data_path = zhang15_dbpedia_dir + "full.csv"
+zhang15_dbpedia_full_augmented_path = zhang15_dbpedia_dir + "full_augmented.csv"
 
 zhang15_dbpedia_train_path = zhang15_dbpedia_dir + "train.csv"
 zhang15_dbpedia_train_processed_path = zhang15_dbpedia_dir + "processed_train_text.pkl"
