@@ -74,6 +74,21 @@ In order to run the code, please check the following issues.
 [config.py]: src_reject/config.py
 [playground.py]: src_reject/playground.py
 
+### How to perform data augmentation
+
+An example:
+```bash
+python3 topic_translation.py \
+        --data dbpedia \
+        --nott 100 \
+```
+
+The arguments of the command represent
+* `data`: Dataset, either `dbpedia` or `20news`.
+* `nott`: No. of original texts to be translated into all classes except the original class. If `nott` is not given, all the texts in the training dataset will be translated. 
+
+The location of the result file is specified by config.\{zhang15_dbpedia, news20\}_train_augmented_aggregated_path.
+
 ### How to train / test Phase 1
 
 Pending
