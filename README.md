@@ -48,6 +48,7 @@ In order to run the code, please check the following issues.
     - Numpy 1.14.5
     - Pandas 0.21.0
     - NLTK 3.2.5
+    - tqdm 2.2.3
 - [x] Download original datasets
     - [GloVe.6B.200d](https://nlp.stanford.edu/projects/glove/)
     - [ConceptNet v5.6.0](https://github.com/commonsense/conceptnet5/wiki/Downloads)
@@ -96,7 +97,7 @@ An example:
 ```bash
 python3 kg_vector_generation.py --data dbpedia 
 ```
-The argument of the command represent
+The argument of the command represents
 * `data`: Dataset, either `dbpedia` or `20news`.
 
 The locations of the result files are specified by config.\{zhang15_dbpedia, news20\}_kg_vector_dir.
