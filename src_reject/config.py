@@ -111,7 +111,7 @@ pos_dict = {'JJ': 'a', 'JJR': 'a', 'JJS': 'a',
 
 word_embed_file_path = "../data/glove/glove.6B.200d.txt"
 word_embed_gensim_file_path = '../data/glove/glove.6B.200d.gensim.txt'
-conceptnet_path = "../wordEmbeddings/conceptnet-assertions-en-5.6.0.csv"
+conceptnet_path = "../data/conceptnet-assertions-en-5.6.0.csv"
 POS_OF_WORD_path = "../data/POS_OF_WORD.pickle"
 WORD_TOPIC_TRANSLATION_path = "../data/WORD_TOPIC_TRANSLATION.pickle"
 
@@ -195,9 +195,8 @@ zhang15_dbpedia_class_random_group_path = zhang15_dbpedia_dir + "dbpedia_random_
 
 # zhang15_dbpedia_kg_vector_dir = zhang15_dbpedia_dir + "KG_VECTOR_3/"
 # zhang15_dbpedia_kg_vector_prefix = "KG_VECTORS_3_"
-# TODO by Peter, how to get KG_Vector files
+zhang15_dbpedia_kg_vector_node_data_path = zhang15_dbpedia_dir + 'NODES_DATA.pickle'
 zhang15_dbpedia_kg_vector_dir = zhang15_dbpedia_dir + "KG_VECTOR_CLUSTER_3GROUP/"
-# zhang15_dbpedia_kg_vector_dir = zhang15_dbpedia_dir + "KG_VECTOR_CLUSTER_ALLGROUP/"
 zhang15_dbpedia_kg_vector_prefix = "VECTORS_CLUSTER_3_"
 
 zhang15_dbpedia_word_embed_matrix_path = zhang15_dbpedia_dir + "word_embed_matrix.npz"
@@ -293,9 +292,7 @@ news20_train_augmented_processed_path = news20_dir + "processed_train_augmented_
 
 news20_vocab_path = news20_dir + "vocab.txt"
 
-# TODO by Peter, how to get kg vectors
-# news20_kg_vector_dir = news20_dir + "KG_VECTOR_3_Lem/"
-# news20_kg_vector_prefix = "lemmatised_KG_VECTORS_3_"
+news20_kg_vector_node_data_path = news20_dir + 'NODES_DATA.pickle'
 news20_kg_vector_dir = news20_dir + "KG_VECTOR_CLUSTER_3GROUP/"
 news20_kg_vector_prefix = "VECTORS_CLUSTER_3_"
 

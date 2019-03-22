@@ -89,6 +89,18 @@ The arguments of the command represent
 
 The location of the result file is specified by config.\{zhang15_dbpedia, news20\}_train_augmented_aggregated_path.
 
+
+### How to perform feature augmentation / create v_{w,c}
+
+An example:
+```bash
+python3 kg_vector_generation.py --data dbpedia 
+```
+The argument of the command represent
+* `data`: Dataset, either `dbpedia` or `20news`.
+
+The locations of the result files are specified by config.\{zhang15_dbpedia, news20\}_kg_vector_dir.
+
 ### How to train / test Phase 1
 
 Pending
