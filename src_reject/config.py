@@ -9,6 +9,7 @@ parser.add_argument("--model", type=str, required=False, help="model: vwvcvkg vw
 parser.add_argument("--ns", type=int, default=2, required=False, help="negative samples: integer, the ratio of positive and negative samples, the higher the more negative samples")
 parser.add_argument("--ni", type=int, default=2, required=False, help="negative increase: integer, the speed of increasing negative samples during training per epoch")
 parser.add_argument("--sepoch", type=int, required=False, help="small epoch: integer, repeat training of each epoch for several times so that the ratio of posi/negative, learning rate both keep the same")
+parser.add_argument("--nepoch", type=int, default = 5, required=False, help="number of epochs for training")
 parser.add_argument("--rgidx", type=int, default=1, required=False, help="random group starting index: e.g. if 5, the training will start from the 5th random group, by default 1")
 parser.add_argument("--train", type=int, required=False, help="train or not")
 parser.add_argument("--gpu", type=float, default=1.0, required=False, help="gpu occupation percentage")

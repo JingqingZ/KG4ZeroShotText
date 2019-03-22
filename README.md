@@ -104,7 +104,17 @@ The locations of the result files are specified by config.\{zhang15_dbpedia, new
 
 ### How to train / test Phase 1
 
-Pending
+- Without data augmentation: an example
+```bash
+python3 train_reject.py \
+        --data dbpedia \
+        --unseen 0.5 \
+        --model vw \
+        --nepoch 3 \
+        --rgidx 1 \
+        --train 1
+```
+
 
 ### How to train / test the traditional classifier in Phase 2
 
