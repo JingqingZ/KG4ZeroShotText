@@ -117,17 +117,11 @@ conceptnet_path = "../data/conceptnet-assertions-en-5.6.0.csv"
 POS_OF_WORD_path = "../data/POS_OF_WORD.pickle"
 WORD_TOPIC_TRANSLATION_path = "../data/WORD_TOPIC_TRANSLATION.pickle"
 
-# TODO by Peter: how to get these rejector files
-if dataset == "dbpedia" and unseen_rate == 0.25:
-    rejector_file = "./dbpedia_unseen0.25_augmented12000.pickle"
-elif dataset == "dbpedia" and unseen_rate == 0.5:
-    rejector_file = "./dbpedia_unseen0.50_augmented8000.pickle"
-elif dataset == "20news" and unseen_rate == 0.25:
-    rejector_file = "./20news_unseen0.25_augmented4000.pickle"
-elif dataset == "20news" and unseen_rate == 0.5:
-    rejector_file = "./20news_unseen0.50_augmented3000.pickle"
+if dataset in ["dbpedia", "20news"] and unseen_rate in [0.25, 0.5, 0.75]:
+	rejector_file = "../results/%s_unseen%.2f_augmented%d.pickle" % (dataset, unseen_rate, args.naug)
 else:
     rejector_file = None
+ 
 
 
 ##################################

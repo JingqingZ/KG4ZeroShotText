@@ -722,7 +722,7 @@ if __name__ == "__main__":
     num_epoch = config.args.nepoch
     unseen_percentage = config.unseen_rate
     num_augmented = config.args.naug
-
+    pass_to_phase2 = []
     for i in range(config.args.rgidx-1, 10):
         seen_classes, unseen_classes = random_set[i]['seen'], random_set[i]['unseen']
 
@@ -779,6 +779,7 @@ if __name__ == "__main__":
             else:
                 gt_accepted.append(0)
         accepted_stats = utils.get_precision_recall_f1(np.array(accepted), np.array(gt_accepted), with_confusion_matrix = True)
+        pass_to_phase2.append(accepted)
 
         avg_classifier_stat = dict()
         for key in stat_list[0]:
@@ -807,7 +808,7 @@ if __name__ == "__main__":
         iteration_statistics=iteration_statistics
     )
 
-
+    pickle.dump(pass_to_phase2, results_path + "%s_unseen%.2f_augmented%d.pickle" % (dataset_name, unseen_percentage, num_augmented))
 
     pass
 
