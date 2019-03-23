@@ -2,19 +2,22 @@
 import argparse
 
 parser = argparse.ArgumentParser(description='configurations')
-parser.add_argument("--data",  type=str, required=True, help="dataset: dbpedia or 20news")
-parser.add_argument("--unseen", type=float, required=True, help="unseen rate: 0.25 0.5 0.75")
-# parser.add_argument("--aug", type=int, required=True, help="augmentation: 0 4000 8000 12000 16000 20000")
-parser.add_argument("--model", type=str, required=True, help="model: vwvcvkg vwvc vwvkg vcvkg kgonly cnnfc rnnfc")
+parser.add_argument("--data",  type=str, required=False, help="dataset: dbpedia or 20news")
+parser.add_argument("--unseen", type=float, required=False, help="unseen rate: 0.25 0.5 0.75")
+# parser.add_argument("--aug", type=int, required=False, help="augmentation: 0 4000 8000 12000 16000 20000")
+parser.add_argument("--model", type=str, required=False, help="model: vwvcvkg vwvc vwvkg vcvkg kgonly cnnfc rnnfc")
 parser.add_argument("--ns", type=int, default=2, required=False, help="negative samples: integer, the ratio of positive and negative samples, the higher the more negative samples")
 parser.add_argument("--ni", type=int, default=2, required=False, help="negative increase: integer, the speed of increasing negative samples during training per epoch")
-parser.add_argument("--sepoch", type=int, required=True, help="small epoch: integer, repeat training of each epoch for several times so that the ratio of posi/negative, learning rate both keep the same")
+parser.add_argument("--sepoch", type=int, required=False, help="small epoch: integer, repeat training of each epoch for several times so that the ratio of posi/negative, learning rate both keep the same")
+parser.add_argument("--nepoch", type=int, default = 5, required=False, help="number of epochs for training")
 parser.add_argument("--rgidx", type=int, default=1, required=False, help="random group starting index: e.g. if 5, the training will start from the 5th random group, by default 1")
-parser.add_argument("--train", type=int, required=True, help="train or not")
+parser.add_argument("--train", type=int, required=False, help="train or not")
 parser.add_argument("--gpu", type=float, default=1.0, required=False, help="gpu occupation percentage")
 parser.add_argument("--baseepoch", type=int, required=False, help="base epoch for testing")
 parser.add_argument("--fulltest", type=int, required=False, help="full test or not")
 parser.add_argument("--threshold", type=float, required=False, help="threshold for seen")
+parser.add_argument("--nott", type=int, required=False, help="no. of original texts to be translated")
+parser.add_argument("--naug", type=int, default = 0, required=False, help="no. of augmented data per unseen class")
 args = parser.parse_args()
 print(args)
 
@@ -110,21 +113,15 @@ pos_dict = {'JJ': 'a', 'JJR': 'a', 'JJS': 'a',
 
 word_embed_file_path = "../data/glove/glove.6B.200d.txt"
 word_embed_gensim_file_path = '../data/glove/glove.6B.200d.gensim.txt'
-conceptnet_path = "../wordEmbeddings/conceptnet-assertions-en-5.6.0.csv"
+conceptnet_path = "../data/conceptnet-assertions-en-5.6.0.csv"
 POS_OF_WORD_path = "../data/POS_OF_WORD.pickle"
 WORD_TOPIC_TRANSLATION_path = "../data/WORD_TOPIC_TRANSLATION.pickle"
 
-# TODO by Peter: how to get these rejector files
-if dataset == "dbpedia" and unseen_rate == 0.25:
-    rejector_file = "./dbpedia_unseen0.25_augmented12000.pickle"
-elif dataset == "dbpedia" and unseen_rate == 0.5:
-    rejector_file = "./dbpedia_unseen0.50_augmented8000.pickle"
-elif dataset == "20news" and unseen_rate == 0.25:
-    rejector_file = "./20news_unseen0.25_augmented4000.pickle"
-elif dataset == "20news" and unseen_rate == 0.5:
-    rejector_file = "./20news_unseen0.50_augmented3000.pickle"
+if dataset in ["dbpedia", "20news"] and unseen_rate in [0.25, 0.5, 0.75]:
+	rejector_file = "../results/%s_unseen%.2f_augmented%d.pickle" % (dataset, unseen_rate, args.naug)
 else:
     rejector_file = None
+ 
 
 
 ##################################
@@ -169,13 +166,14 @@ zhang15_dir = "../data/zhang15/"
 zhang15_dbpedia_dir = zhang15_dir + "dbpedia_csv/"
 
 zhang15_dbpedia_full_data_path = zhang15_dbpedia_dir + "full.csv"
+zhang15_dbpedia_full_augmented_path = zhang15_dbpedia_dir + "full_augmented.csv"
 
 zhang15_dbpedia_train_path = zhang15_dbpedia_dir + "train.csv"
 zhang15_dbpedia_train_processed_path = zhang15_dbpedia_dir + "processed_train_text.pkl"
 
-# TODO by Peter: how to get augmented data
-zhang15_dbpedia_train_aug_path = zhang15_dbpedia_dir + "train_augmented_aggregated.csv"
-zhang15_dbpedia_train_aug_processed_path = zhang15_dbpedia_dir + "processed_train_aug_text.pkl"
+zhang15_dbpedia_train_augmented_path = zhang15_dbpedia_dir + "train_augmented.csv"
+zhang15_dbpedia_train_augmented_aggregated_path = zhang15_dbpedia_dir + "train_augmented_aggregated.csv"
+zhang15_dbpedia_train_augmented_processed_path = zhang15_dbpedia_dir + "processed_train_augmented_text.pkl"
 
 zhang15_dbpedia_test_path = zhang15_dbpedia_dir + "test.csv"
 zhang15_dbpedia_test_processed_path = zhang15_dbpedia_dir + "processed_test_text.pkl"
@@ -194,9 +192,8 @@ zhang15_dbpedia_class_random_group_path = zhang15_dbpedia_dir + "dbpedia_random_
 
 # zhang15_dbpedia_kg_vector_dir = zhang15_dbpedia_dir + "KG_VECTOR_3/"
 # zhang15_dbpedia_kg_vector_prefix = "KG_VECTORS_3_"
-# TODO by Peter, how to get KG_Vector files
+zhang15_dbpedia_kg_vector_node_data_path = zhang15_dbpedia_dir + 'NODES_DATA.pickle'
 zhang15_dbpedia_kg_vector_dir = zhang15_dbpedia_dir + "KG_VECTOR_CLUSTER_3GROUP/"
-# zhang15_dbpedia_kg_vector_dir = zhang15_dbpedia_dir + "KG_VECTOR_CLUSTER_ALLGROUP/"
 zhang15_dbpedia_kg_vector_prefix = "VECTORS_CLUSTER_3_"
 
 zhang15_dbpedia_word_embed_matrix_path = zhang15_dbpedia_dir + "word_embed_matrix.npz"
@@ -285,15 +282,14 @@ news20_train_processed_path = news20_dir + "processed_train_text.pkl"
 news20_test_path = news20_dir + "test.csv"
 news20_test_processed_path = news20_dir + "processed_test_text.pkl"
 
-# TODO by Peter, how to get augmented data
-news20_train_aug_path = news20_dir + "train_augmented.csv"
-news20_train_aug_processed_path = news20_dir + "processed_train_aug_text.pkl"
+news20_train_augmented_path = news20_dir + "train_augmented.csv"
+news20_train_augmented_aggregated_path = news20_dir + "train_augmented_aggregated.csv"
+news20_train_augmented_processed_path = news20_dir + "processed_train_augmented_text.pkl"
+
 
 news20_vocab_path = news20_dir + "vocab.txt"
 
-# TODO by Peter, how to get kg vectors
-# news20_kg_vector_dir = news20_dir + "KG_VECTOR_3_Lem/"
-# news20_kg_vector_prefix = "lemmatised_KG_VECTORS_3_"
+news20_kg_vector_node_data_path = news20_dir + 'NODES_DATA.pickle'
 news20_kg_vector_dir = news20_dir + "KG_VECTOR_CLUSTER_3GROUP/"
 news20_kg_vector_prefix = "VECTORS_CLUSTER_3_"
 
