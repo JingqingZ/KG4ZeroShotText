@@ -17,7 +17,7 @@ parser.add_argument("--baseepoch", type=int, required=False, help="base epoch fo
 parser.add_argument("--fulltest", type=int, required=False, help="full test or not")
 parser.add_argument("--threshold", type=float, required=False, help="threshold for seen")
 parser.add_argument("--nott", type=int, required=False, help="no. of original texts to be translated")
-parser.add_argument("--naug", type=int, default = 100, required=False, help="no. of augmented data per unseen class")
+parser.add_argument("--naug", type=int, default = 0, required=False, help="no. of augmented data per unseen class")
 args = parser.parse_args()
 print(args)
 
