@@ -808,7 +808,7 @@ if __name__ == "__main__":
         iteration_statistics=iteration_statistics
     )
 
-    pickle.dump(pass_to_phase2, results_path + "%s_unseen%.2f_augmented%d.pickle" % (dataset_name, unseen_percentage, num_augmented))
+    pickle.dump(pass_to_phase2, config.rejector_file)
 
     pass
 

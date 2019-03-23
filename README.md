@@ -137,6 +137,7 @@ The arguments of the command represent
 * `rgidx`: Optional, Random group starting index: e.g. if 5, the training will start from the 5th random group, by default `1`. This argument is used when the program is accidentally interrupted.
 * `naug`: The number of augmented data per unseen class
 
+The location of the result file (pickle) is specified by config.rejector_file. The pickle file is actually a list of 10 sublists (corresponding to 10 iterations). Each sublist contains predictions of each test case (1 = predicted as seen, 0 = predicted as unseen).
 
 ### How to train / test the traditional classifier in Phase 2
 
