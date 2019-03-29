@@ -64,7 +64,9 @@ In order to run the code, please check the following issues.
         - Besides, `full.csv` is also generated and is used to create vocabulary for 20news later. 
         - Note that the variable `home_dir` in this function should be the location of the home directory of uncompressed 20news data, which includes a collection of folders named by class labels.
 - [x] Other intermediate files should be generated automatically when they are needed.
+- [x] Check [supplementary] files in case you need them.
 
+[supplementary]: https://imperiallondon-my.sharepoint.com/:f:/g/personal/jz9215_ic_ac_uk/EmI6JPnwLW5Lu33WbQ4nuEUBSkoc9DI9EcHWassF-QxSZQ?e=oxuXI0
 [TensorLayer]: https://github.com/tensorlayer/tensorlayer
 [config.py]: src_reject/config.py
 [playground.py]: src_reject/playground.py
