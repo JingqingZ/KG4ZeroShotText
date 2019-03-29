@@ -744,7 +744,7 @@ def error_seen():
             #               "" if not config.global_full_test else "_full", epoch)
         elif config.dataset == "20news":
             filename = "../results/seen_selected_tfidf_news20_vwonly_random%d_unseen%s_max%d_cnn/logs/test_full_%d.npz" \
-                             % (i + 1, "-".join(str(_) for _ in rgroup[1]), 200, 5)
+                             % (i + 1, "-".join(str(_) for _ in rgroup[1]), 200, 20)
             # filename = "../results/unseen_selected_tfidf_news20_kg3_cluster_3group_%s_random%d_unseen%s_max%d_cnn_negative%dincrease%d_randomtext_aug%d/logs/test%s_%d.npz" \
             #            % (config.model, i + 1, "-".join(str(_) for _ in rgroup[1]), 50, config.negative_sample, config.negative_increase, config.augmentation,
             #               "" if not config.global_full_test else "_full", epoch)
@@ -760,7 +760,7 @@ def error_seen():
             if k not in overall_stats:
                 overall_stats[k] = list()
             overall_stats[k].append(v)
-        print_string += "%.3f/%.3f/%.3f," \
+        print_string += "%.4f/%.4f/%.4f," \
                         % (1 - classify_stats["single-label-error"],
                            classify_stats["micro-F1"],
                            classify_stats["macro-F1"])
@@ -771,7 +771,7 @@ def error_seen():
     print("=======")
     print("overall: %s" % (utils.dict_to_string_4_print(overall_stats)))
     print("for Google Sheets, split by comma")
-    print_string += "%.3f/%.3f/%.3f" \
+    print_string += "%.4f/%.4f/%.4f" \
                     % (1 - overall_stats["single-label-error"],
                        overall_stats["micro-F1"],
                        overall_stats["macro-F1"])
@@ -863,7 +863,7 @@ def error_unseen():
                 if k not in overall_stats:
                     overall_stats[k] = list()
                 overall_stats[k].append(v)
-            print_string += "%.3f/%.3f/%.3f," \
+            print_string += "%.4f/%.4f/%.4f," \
                             % (1 - classify_stats["single-label-error"],
                                classify_stats["micro-F1"],
                                classify_stats["macro-F1"])
@@ -876,7 +876,7 @@ def error_unseen():
         if len(overall_stats) == 0:
             continue
         print("for Google Sheets, split by comma")
-        print_string += "%.3f/%.3f/%.3f" \
+        print_string += "%.4f/%.4f/%.4f" \
                         % (1 - overall_stats["single-label-error"],
                            overall_stats["micro-F1"],
                            overall_stats["macro-F1"])
@@ -910,7 +910,7 @@ def error_unseen_best():
             if k not in overall_stats:
                 overall_stats[k] = list()
             overall_stats[k].append(v)
-        print_string += "%.3f/%.3f/%.3f," \
+        print_string += "%.4f/%.4f/%.4f," \
                         % (1 - best_stats["single-label-error"],
                            best_stats["micro-F1"],
                            best_stats["macro-F1"])
@@ -921,7 +921,7 @@ def error_unseen_best():
     print("=======")
     print("overall: %s" % (utils.dict_to_string_4_print(overall_stats)))
     # print("for Google Sheets, split by comma")
-    print_string += "%.3f/%.3f/%.3f" \
+    print_string += "%.4f/%.4f/%.4f" \
                     % (1 - overall_stats["single-label-error"],
                        overall_stats["micro-F1"],
                        overall_stats["macro-F1"])
@@ -1074,15 +1074,15 @@ def error_overall():
         print(epoch, "seen: %s" % (utils.dict_to_string_4_print(seen_stats)))
         print(epoch, "unseen: %s" % (utils.dict_to_string_4_print(unseen_stats)))
         print(epoch, "overall: %s" % (utils.dict_to_string_4_print(overall_stats)))
-        print_string += "%.3f/%.3f/%.3f" \
+        print_string += "%.4f/%.4f/%.4f" \
                        % (1 - seen_stats["single-label-error"],
                           seen_stats["micro-F1"],
                           seen_stats["macro-F1"])
-        print_string += ",%.3f/%.3f/%.3f" \
+        print_string += ",%.4f/%.4f/%.4f" \
                        % (1 - unseen_stats["single-label-error"],
                           unseen_stats["micro-F1"],
                           unseen_stats["macro-F1"])
-        print_string += ",%.3f/%.3f/%.3f" \
+        print_string += ",%.4f/%.4f/%.4f" \
                         % (1 - overall_stats["single-label-error"],
                            overall_stats["micro-F1"],
                            overall_stats["macro-F1"])
@@ -1129,7 +1129,7 @@ def error_overall_with_rejector():
             unseen_filename = "../results/unseen_selected_tfidf_news20_kg3_cluster_3group_only_random%d_unseen%s_max%d_cnn_negative%dincrease%d_randomtext/logs/test_full_%d.npz" \
                            % (i + 1, "-".join(str(_) for _ in rgroup[1]), 50, 1, 1, 1)
             seen_filename = "../results/seen_selected_tfidf_news20_vwonly_random%d_unseen%s_max%d_cnn/logs/test_full_%d.npz" \
-                           % (i + 1, "-".join(str(_) for _ in rgroup[1]), 200, 5)
+                           % (i + 1, "-".join(str(_) for _ in rgroup[1]), 200, 20)
         elif config.dataset == "20news" and config.unseen_rate == 0.5:
             unseen_filename = "../results/unseen_selected_tfidf_news20_kg3_cluster_3group_%s_random%d_unseen%s_max%d_cnn_negative%dincrease%d_randomtext_aug%d/logs/test_full_%d.npz" \
                            % (config.model, i + 1, "-".join(str(_) for _ in rgroup[1]), 50, config.negative_sample, config.negative_increase, config.augmentation, config.global_test_base_epoch)
@@ -1271,15 +1271,15 @@ def error_overall_with_rejector():
     print("seen: %s" % (utils.dict_to_string_4_print(seen_stats)))
     print("unseen: %s" % (utils.dict_to_string_4_print(unseen_stats)))
     print("overall: %s" % (utils.dict_to_string_4_print(overall_stats)))
-    print_string += "%.3f/%.3f/%.3f" \
+    print_string += "%.4f/%.4f/%.4f" \
                     % (1 - seen_stats["single-label-error"],
                        seen_stats["micro-F1"],
                        seen_stats["macro-F1"])
-    print_string += ",%.3f/%.3f/%.3f" \
+    print_string += ",%.4f/%.4f/%.4f" \
                     % (1 - unseen_stats["single-label-error"],
                        unseen_stats["micro-F1"],
                        unseen_stats["macro-F1"])
-    print_string += ",%.3f/%.3f/%.3f" \
+    print_string += ",%.4f/%.4f/%.4f" \
                     % (1 - overall_stats["single-label-error"],
                        overall_stats["micro-F1"],
                        overall_stats["macro-F1"])
@@ -1480,15 +1480,15 @@ def error_phase1_with_rejector():
     print("seen: %s" % (utils.dict_to_string_4_print(seen_stats)))
     print("unseen: %s" % (utils.dict_to_string_4_print(unseen_stats)))
     print("overall: %s" % (utils.dict_to_string_4_print(overall_stats)))
-    print_string += "%.3f/%.3f/%.3f" \
+    print_string += "%.4f/%.4f/%.4f" \
                     % (1 - seen_stats["single-label-error"],
                        seen_stats["micro-F1"],
                        seen_stats["macro-F1"])
-    print_string += ",%.3f/%.3f/%.3f" \
+    print_string += ",%.4f/%.4f/%.4f" \
                     % (1 - unseen_stats["single-label-error"],
                        unseen_stats["micro-F1"],
                        unseen_stats["macro-F1"])
-    print_string += ",%.3f/%.3f/%.3f" \
+    print_string += ",%.4f/%.4f/%.4f" \
                     % (1 - overall_stats["single-label-error"],
                        overall_stats["micro-F1"],
                        overall_stats["macro-F1"])
@@ -1499,7 +1499,7 @@ def error_phase1_with_rejector():
 if __name__ == "__main__":
     error_overall_with_rejector()
     # error_phase1_with_rejector()
-    # error_seen()
+    error_seen()
     exit()
     if config.model == "cnnfc":
         error_unseen()

@@ -570,6 +570,11 @@ def run_20news():
 
     for i, rgroup in enumerate(random_group):
 
+        # if i + 1 < config.random_group_start_idx:
+        #     continue
+        if i + 1 != 6 and i + 1 != 7:
+            continue
+
         max_length = 200
 
         with tf.Graph().as_default() as graph:
@@ -598,11 +603,10 @@ def run_20news():
                 base_epoch=-1,
                 gpu_config=gpu_config
             )
-            ctl.controller(train_text_seqs, train_class_list, test_text_seqs, test_class_list, train_epoch=5)
-            ctl.controller4test(test_text_seqs, test_class_list, unseen_class_list=ctl.unseen_class, base_epoch=5)
+            ctl.controller(train_text_seqs, train_class_list, test_text_seqs, test_class_list, train_epoch=20)
+            ctl.controller4test(test_text_seqs, test_class_list, unseen_class_list=ctl.unseen_class, base_epoch=20)
 
             ctl.sess.close()
-            time.sleep(20)
 
 def run_amazon():
 

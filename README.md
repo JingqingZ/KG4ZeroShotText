@@ -1,4 +1,4 @@
-# Integrating Semantic Knowledge to Tackle Zero-shot Text Classification. NAACL-HLT 2019. (Accepted)
+# Integrating Semantic Knowledge to Tackle Zero-shot Text Classification. NAACL-HLT 2019. Oral (Accepted)
 ### Jingqing Zhang, Piyawat Lertvittayakumjorn, Yike Guo
 
 ##### Jingqing and Piyawat contributed equally to this project.
@@ -195,10 +195,9 @@ The arguments of the command represent
 We would like to thank Douglas McIlwraith, Nontawat Charoenphakdee, 
 and three anonymous reviewers for helpful suggestions. Jingqing and 
 Piyawat would also like to thank the support from 
-[LexisNexis HPCC Systems Academic Program] and Anandamahidol 
+LexisNexis&reg; Risk Solutions HPCC Systems&reg; academic program
+and Anandamahidol 
 Foundation, respectively.
-
-[LexisNexis HPCC Systems Academic Program]: https://hpccsystems.com/community/academics
 
 <h2 id="Citation">Citation</h2>
 Pending

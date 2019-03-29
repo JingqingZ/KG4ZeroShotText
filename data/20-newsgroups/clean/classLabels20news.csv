@@ -1,7 +1,7 @@
 ClassCode,ClassLabel,ConceptNet,Count,ClassDescription,Hierarchy,ClassWord
 1,alt.atheism,atheism,799,the belief or theory that God does not exist,alt,atheism
 2,comp.graphics,graphics,973,pictures produced by computers,computer,graphics
-3,comp.os.ms-windows.misc,operating system,985,the software that tells the parts of a computer how to work together and what to do,computer;os;ms;windows,os
+3,comp.os.ms-windows.misc,os,985,the software that tells the parts of a computer how to work together and what to do,computer;os;ms;windows,os
 4,comp.sys.ibm.pc.hardware,ibm,982,ibm personal computer equipments,computer;system;pc;hardware,ibm
 5,comp.sys.mac.hardware,mac,961,mac computer equipment,computer;system;hardware,mac
 6,comp.windows.x,windows,980,windows x,computer;x;,windows
