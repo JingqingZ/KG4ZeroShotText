@@ -55,16 +55,10 @@ In order to run the code, please check the following issues.
     - Random selection of seen/unseen classes in DBpedia with unseen rate [0.25](data/zhang15/dbpedia_csv/dbpedia_random_group_0.25.txt) and [0.5](data/zhang15/dbpedia_csv/dbpedia_random_group_0.5.txt).
     - Random selection of seen/unseen classes in 20news with unseen rate [0.25](data/20-newsgroups/clean/20news_random_group_0.25.txt) and [0.5](data/20-newsgroups/clean/20news_random_group_0.5.txt).
     - Note: seen/unseen classes were randomly selected for 10 times. You may randomly generate another 10 groups of seen/unseen classes.
-- [x] The intermediate files need to be manually generated
-    - Appropriate preprocessing is recommended. For example, the vocabulary is limited by 20K most frequent words and all numbers are excluded.
-    - Run `combine_zhang15_dbpedia_train_test()` in [playground.py]: 
-        - The generated `full.csv` is used to create vocabulary for DBpedia later.
-    - Run `doing_sth_on_20_news()` in [playground.py]: 
-        - This function automatically collects 20news data and randomly splits the data into training set `train.csv` (70%) and testing set `test.csv` (30%). 
-        - Besides, `full.csv` is also generated and is used to create vocabulary for 20news later. 
-        - Note that the variable `home_dir` in this function should be the location of the home directory of uncompressed 20news data, which includes a collection of folders named by class labels.
+- [x] Some intermediate files have been uploaded to [supplementary].
 - [x] Other intermediate files should be generated automatically when they are needed.
-- [x] Check [supplementary] files in case you need them.
+
+Please feel free to raise an issue if you find any difficulty to run the code or get the intermediate files.
 
 [supplementary]: https://imperiallondon-my.sharepoint.com/:f:/g/personal/jz9215_ic_ac_uk/EmI6JPnwLW5Lu33WbQ4nuEUBSkoc9DI9EcHWassF-QxSZQ?e=oxuXI0
 [TensorLayer]: https://github.com/tensorlayer/tensorlayer
