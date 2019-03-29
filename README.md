@@ -31,12 +31,6 @@ real-world texts under the zero-shot scenario.
 
 <h2 id="Code">Code</h2>
 
-### Quick start
-```bash
-cd src_reject
-sh run.sh
-```
-
 ### Checklist
 
 In order to run the code, please check the following issues.
