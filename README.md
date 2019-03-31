@@ -43,6 +43,7 @@ In order to run the code, please check the following issues.
     - Pandas 0.21.0
     - NLTK 3.2.5
     - tqdm 2.2.3
+    - [gensim](https://pypi.org/project/gensim/) 3.7.1
     - [language-check](https://pypi.org/project/language-check/) 1.1
 - [x] Download original datasets
     - [GloVe.6B.200d](https://nlp.stanford.edu/projects/glove/)
