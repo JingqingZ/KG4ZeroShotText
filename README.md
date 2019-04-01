@@ -3,9 +3,7 @@
 
 ##### Jingqing and Piyawat contributed equally to this project.
 
-> This repo is still under construction. More information (including the paper) will be released by 1st April, 2019.
-
-Paper link: Pending
+Paper link: [arXiv:1903.12626](https://arxiv.org/abs/1903.12626)
 
 ## Contents
 1. [Abstract](#Abstract)
@@ -192,7 +190,18 @@ and Anandamahidol
 Foundation, respectively.
 
 <h2 id="Citation">Citation</h2>
-Pending
+
+    @inproceedings{zhangkumjornZeroShot,
+        title = "Integrating Semantic Knowledge to Tackle Zero-shot Text Classification",
+        author = "Zhang, Jingqing and
+        Lertvittayakumjorn, Piyawat and 
+        Guo, Yike",
+        booktitle = "Proceedings of the 2019 Conference of the North American Chapter of the Association for Computational Linguistics: Human Language Technologies (Long Papers)",
+        month = jun,
+        year = "2019",
+        address = "Minneapolis, USA",
+        publisher = "Association for Computational Linguistics",
+    }
 
 
 
