@@ -644,7 +644,7 @@ if __name__ == "__main__":
             column="text", force_process=False
         )
 
-        random_set = read_random_set(config.zhang15_dbpedia_random_set_path)
+        random_set = read_random_set(config.zhang15_dbpedia_class_random_group_path)
         max_length = 50 
 
     elif config.dataset == "20news":
@@ -710,8 +710,8 @@ if __name__ == "__main__":
             column="text", force_process=False
         )
 
-        # random_set = read_random_set(config.news20_random_set_path)
-        random_set = read_random_set(config.news20_random_set_path)
+        # random_set = read_random_set(config.news20_class_random_group_path)
+        random_set = read_random_set(config.news20_class_random_group_path)
         max_length = 100
         
         # --------------------------------------------------------------------------------------------------------------
