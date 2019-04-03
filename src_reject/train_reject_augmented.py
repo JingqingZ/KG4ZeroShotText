@@ -27,6 +27,7 @@ import config
 import model_reject
 import train_base
 import dataloader
+import pickle
 
 # results_path = "../results/Model4Reject" + "/" + datetime.now().strftime("%Y%m%d%H%M%S")
 results_path = "../results/"
