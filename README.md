@@ -189,6 +189,8 @@ LexisNexis&reg; Risk Solutions HPCC Systems&reg; academic program
 and Anandamahidol 
 Foundation, respectively.
 
+We would also like to thank [@Nan Guoshun](https://github.com/nanguoshun) for the bugs reported. 
+
 <h2 id="Citation">Citation</h2>
 
     @inproceedings{zhangkumjornZeroShot,
