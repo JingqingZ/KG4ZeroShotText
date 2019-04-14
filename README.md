@@ -80,6 +80,11 @@ The arguments of the command represent
 
 The location of the result file is specified by config.\{zhang15_dbpedia, news20\}_train_augmented_aggregated_path.
 
+Three outputs files will be automatically generated (filepath defined in [config.py](src_reject/config.py)).
+* config.word_embed_gensim_file_path
+* config.POS_OF_WORD_path
+* config.WORD_TOPIC_TRANSLATION_path
+
 
 ### How to perform feature augmentation / create v_{w,c}
 
