@@ -55,12 +55,12 @@ In order to run the code, please check the following issues.
     - Random selection of seen/unseen classes in DBpedia with unseen rate [0.25](data/zhang15/dbpedia_csv/dbpedia_random_group_0.25.txt) and [0.5](data/zhang15/dbpedia_csv/dbpedia_random_group_0.5.txt).
     - Random selection of seen/unseen classes in 20news with unseen rate [0.25](data/20-newsgroups/clean/20news_random_group_0.25.txt) and [0.5](data/20-newsgroups/clean/20news_random_group_0.5.txt).
     - Note: seen/unseen classes were randomly selected for 10 times. You may randomly generate another 10 groups of seen/unseen classes.
-- [x] Some intermediate files have been uploaded to [supplementary].
+- [x] Some intermediate files are available on __[request basis]__.
 - [x] Other intermediate files should be generated automatically when they are needed.
 
 Please feel free to raise an issue if you find any difficulty to run the code or get the intermediate files.
 
-[supplementary]: https://imperiallondon-my.sharepoint.com/:f:/g/personal/jz9215_ic_ac_uk/EmI6JPnwLW5Lu33WbQ4nuEUBSkoc9DI9EcHWassF-QxSZQ?e=oxuXI0
+[request basis]: mailto:jingqing.zhang15@imperial.ac.uk
 [TensorLayer]: https://github.com/tensorlayer/tensorlayer
 [config.py]: src_reject/config.py
 [playground.py]: src_reject/playground.py
